@@ -1,2 +1,2 @@
-# FP_Adder
+# Adder
 Capstone Design
