@@ -23,7 +23,7 @@ std::uniform_int_distribution<int>  RandomExponent(0, 254);
 std::uniform_int_distribution<int>  RandomMantisa(0, 0x7FFFFF);
 std::uniform_int_distribution<int>  RandomSign(0, 1);
 
-//Union ì‚¬ìš©
+//Union »ç¿ë
 typedef union {
 	float f;
 	struct {
@@ -49,10 +49,10 @@ float_cast makeFP() {
 
 float_cast FPAdder(float_cast a, float_cast b) {
 
-	//ë¨¼ì € ë‘ ê°’ì´ real numberì¸ì§€ íŒë‹¨í•´ì•¼í•œë‹¤. (inf, -inf, 0, -0, NAN)
+	//¸ÕÀú µÎ °ªÀÌ real numberÀÎÁö ÆÇ´ÜÇØ¾ßÇÑ´Ù. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
 
-	//ì…ë ¥ê°’ì´ INFì¼ ìˆ˜ ê°€ìˆë‚˜?
+	//ÀÔ·Â°ªÀÌ INFÀÏ ¼ö °¡ÀÖ³ª?
 	if (a.parts.exponent == 0xFF && a.parts.sign == 0)  //a is inf 
 	{
 		not_real_number
@@ -72,10 +72,10 @@ float_cast FPAdder(float_cast a, float_cast b) {
 	}
 
 
-	float_cast z; //return ê°’
+	float_cast z; //return °ª
 	z.parts.sign = 0;
 	unsigned int sum = 0;
-	//êµ³ì´ 0 ë”°ë¡œ ë³¼í•„ìš”ì—†ë‹¤.
+	//±»ÀÌ 0 µû·Î º¼ÇÊ¿ä¾ø´Ù.
 	if (a.f == 0) //a == 0 || b == 0  return a or b
 		z.f = b.f;
 	else if (b.f == 0)
@@ -97,30 +97,40 @@ float_cast FPAdder(float_cast a, float_cast b) {
 			else {
 
 			}
-			z.parts.mantisa &= 0x7FFFF;
+			z.parts.mantisa &= 0x7FFFF;   
 		}
 	}
 	else { //shift smaller one to bigger one
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantisa right
 						//b.parts.exponent = a.parts.exponent;
 			z.parts.exponent = a.parts.exponent;
-			if (abs(subEx) >= 23)	//shift ê°€ mantisaì˜ 23ë¹„íŠ¸ ë„˜ì–´ì„œë©´ 0ìœ¼ë¡œ ì´ˆê¸°í™”!
+			if (abs(subEx) >= 23)	//shift °¡ mantisaÀÇ 23ºñÆ® ³Ñ¾î¼­¸é 0À¸·Î ÃÊ±âÈ­!
 				b.parts.mantisa = 0;
-			else
-				b.parts.mantisa >>= abs(subEx);
+			else {
+				//a.parts.mantisa >>= abs(subEx);
+				b.parts.mantisa = (b.parts.mantisa >> 1) + 0x400000;
+
+				if (abs(subEx) > 1)
+					b.parts.mantisa >>= abs(subEx)-1;
+			}
 		}
 		else {// a's exponent < b's exponent => shift mantisa right
 			  //a.parts.exponent = b.parts.exponent;
 			z.parts.exponent = b.parts.exponent;
-			if (abs(subEx) >= 23)//shift ê°€ mantisaì˜ 23ë¹„íŠ¸ ë„˜ì–´ì„œë©´ 0ìœ¼ë¡œ ì´ˆê¸°í™”!
+			if (abs(subEx) >= 23)//shift °¡ mantisaÀÇ 23ºñÆ® ³Ñ¾î¼­¸é 0À¸·Î ÃÊ±âÈ­!
 				a.parts.mantisa = 0;
-			else
-				a.parts.mantisa >>= abs(subEx);
+			else {
+				//a.parts.mantisa >>= abs(subEx);
+				a.parts.mantisa = (a.parts.mantisa >> 1) + 0x400000;
+
+				if (abs(subEx) > 1)
+					a.parts.mantisa >>= abs(subEx) - 1;
+			}
 		}
 
 		sum = a.parts.mantisa + b.parts.mantisa;
-		//mantisa + matisaê°€ 23ë¹„íŠ¸ê°€ ë„˜ì–´ê°€ë²„ë¦¬ë©´ ìë™ìœ¼ë¡œ ì˜ë¼ë²„ë¦¼! (ì™œëƒë©´ unionì´ë‹ˆê¹)
-		//ë”°ë¼ì„œ ìš°ë¦¬ê°€ ì§ì ‘ ë„˜ì–´ê°€ëŠ” carryê°’ì„ ì²˜ë¦¬í•´ì¤˜ì•¼í•œë‹¤.
+		//mantisa + matisa°¡ 23ºñÆ®°¡ ³Ñ¾î°¡¹ö¸®¸é ÀÚµ¿À¸·Î Àß¶ó¹ö¸²! (¿Ö³Ä¸é unionÀÌ´Ï±ñ)
+		//µû¶ó¼­ ¿ì¸®°¡ Á÷Á¢ ³Ñ¾î°¡´Â carry°ªÀ» Ã³¸®ÇØÁà¾ßÇÑ´Ù.
 		if (sum > 0x7FFFFF) {
 			z.parts.mantisa = (sum >> 1);
 			z.parts.exponent++;
@@ -141,13 +151,13 @@ int main(void) {
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\n");
 	printf("**********************************************************************\n");
 
-	A = makeFP();
-	B = makeFP();
-	//A, B ëœë¤ ì§€ì •
+	//A = makeFP();
+	//B = makeFP();
+	//A, B ·£´ı ÁöÁ¤
 
-	//A.f = 2.494615e+09;
-	//B.f = 1.094270e+04;
-	//A, B ì§ì ‘ ì§€ì •
+	A.f = 2.0e+09;
+	B.f = 1.1e+09;
+	//A, B Á÷Á¢ ÁöÁ¤
 
 	ans = FPAdder(A, B);
 	orgAns.f = A.f + B.f;
@@ -161,19 +171,19 @@ sign = 1
 exponent = 7e
 mantisa = 0*/
 
-/*ì˜¤ë²„í”Œë¡œ ì–¸ë”í”Œë¡œ ì˜ˆì‹œê°€ ìƒê¸¸ ìˆ˜ ì‡ë‚˜
-ì˜¤ë²„í”Œë¡œ ì–¸ë”í”Œë¡œ warning ì´ë‚˜ runtime error ë°œìƒì‹œí‚¤ë‚˜ìš”? ì˜ˆì™¸ì²˜ë¦¬
-ë‹¨ìˆœíˆ ì—ëŸ¬ì²˜ë¦¬í•˜ëŠ”ê²ƒìœ¼ë¡œ ë³´ì.
+/*¿À¹öÇÃ·Î ¾ğ´õÇÃ·Î ¿¹½Ã°¡ »ı±æ ¼ö ÀÕ³ª
+¿À¹öÇÃ·Î ¾ğ´õÇÃ·Î warning ÀÌ³ª runtime error ¹ß»ı½ÃÅ°³ª¿ä? ¿¹¿ÜÃ³¸®
+´Ü¼øÈ÷ ¿¡·¯Ã³¸®ÇÏ´Â°ÍÀ¸·Î º¸ÀÚ.
 
-rounding ì€ ë¬´ì—‡? ì–´ë–»ê²Œ í•˜ë‚˜ìš”
+rounding Àº ¹«¾ù? ¾î¶»°Ô ÇÏ³ª¿ä
 
 
-shift í•  ë•Œ ë§¨ì²¨ì—” 1ë„£ê³  , ë‹´ë¶€í„´ 0ìœ¼ë¡œ ë„£ê¸°?
+shift ÇÒ ¶§ ¸ÇÃ·¿£ 1³Ö°í , ´ãºÎÅÏ 0À¸·Î ³Ö±â?
 
-exponent, mantissa ë‘˜ë‹¤ ëœë¤ì •ìˆ˜ë¡œ ì…ë ¥í•˜ê¸°
-c++ ëœë¤ì •ìˆ˜ ë„£ê¸°
+exponent, mantissa µÑ´Ù ·£´ıÁ¤¼ö·Î ÀÔ·ÂÇÏ±â
+c++ ·£´ıÁ¤¼ö ³Ö±â
 
-ì—ëŸ¬ì²´í¬ , med ì´ëŸ°ì‹ìœ¼ë¡œ ê²€ìƒ‰í•´ë³´ê¸° (ì²™ë„ê°€ ì—†ì–´ì„œ ê·¸ëŸ¼)
+¿¡·¯Ã¼Å© , med ÀÌ·±½ÄÀ¸·Î °Ë»öÇØº¸±â (Ã´µµ°¡ ¾ø¾î¼­ ±×·³)
 */
 
 
