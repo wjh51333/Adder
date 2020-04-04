@@ -23,6 +23,10 @@ std::uniform_int_distribution<int>  RandomExponent(0, 254);
 std::uniform_int_distribution<int>  RandomMantisa(0, 0x7FFFFF);
 std::uniform_int_distribution<int>  RandomSign(0, 1);
 
+
+int nnn = 1;
+int checknum = 0;
+
 //Union 사용
 typedef union {
 	float f;
@@ -48,9 +52,6 @@ float_cast makeFP() {
 }
 
 float_cast FPAdder(float_cast a, float_cast b) {
-
-	unsigned int a_exp = ((a.parts.exponent == 0) ? 1 : a.parts.exponent);
-	unsigned int b_exp = ((b.parts.exponent == 0) ? 1 : b.parts.exponent);
 
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
@@ -85,10 +86,11 @@ float_cast FPAdder(float_cast a, float_cast b) {
 		z.f = a.f;
 
 
-	int subEx = a_exp - b_exp;
+	int subEx = a.parts.exponent - b.parts.exponent;
 
 	if (subEx == 0) {//exponents equal
-		z.parts.exponent = a_exp;
+		checknum = 1;
+		z.parts.exponent = a.parts.exponent;
 		z.parts.mantisa = a.parts.mantisa + b.parts.mantisa;
 
 		if (z.parts.mantisa == 0)
@@ -100,25 +102,37 @@ float_cast FPAdder(float_cast a, float_cast b) {
 			else {
 
 			}
-			z.parts.mantisa &= 0x7FFFF;
+			//z.parts.mantisa &= 0x7FFFF;
+			z.parts.mantisa = z.parts.mantisa >> 1;
+			z.parts.exponent++;
 		}
 	}
 	else { //shift smaller one to bigger one
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantisa right
 						//b.parts.exponent = a.parts.exponent;
-			z.parts.exponent = a_exp;
+			z.parts.exponent = a.parts.exponent;
 			if (abs(subEx) >= 23)	//shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
 				b.parts.mantisa = 0;
-			else
-				b.parts.mantisa >>= abs(subEx);
+			else {
+				//a.parts.mantisa >>= abs(subEx);
+				b.parts.mantisa = (b.parts.mantisa >> 1) + 0x400000;
+
+				if (abs(subEx) > 1)
+					b.parts.mantisa >>= abs(subEx) - 1;
+			}
 		}
 		else {// a's exponent < b's exponent => shift mantisa right
 			  //a.parts.exponent = b.parts.exponent;
-			z.parts.exponent = b_exp;
+			z.parts.exponent = b.parts.exponent;
 			if (abs(subEx) >= 23)//shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
 				a.parts.mantisa = 0;
-			else
-				a.parts.mantisa >>= abs(subEx);
+			else {
+				//a.parts.mantisa >>= abs(subEx);
+				a.parts.mantisa = (a.parts.mantisa >> 1) + 0x400000;
+
+				if (abs(subEx) > 1)
+					a.parts.mantisa >>= abs(subEx) - 1;
+			}
 		}
 
 		sum = a.parts.mantisa + b.parts.mantisa;
@@ -140,6 +154,7 @@ float_cast FPAdder(float_cast a, float_cast b) {
 int main(void) {
 	float_cast A, B, ans;
 	float_cast orgAns;
+	FILE* input= fopen("input.txt","r");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\n");
 	printf("**********************************************************************\n");
@@ -148,17 +163,24 @@ int main(void) {
 	//B = makeFP();
 	//A, B 랜덤 지정
 
-	A.f = 2.614801000000E-23;
-	B.f = 3.076100000000E-30;
-	//A, B 직접 지정
 
+	while (!feof(input)) {
+		fscanf(input, "%f %f ", &A.f, &B.f);
+		//A.f = 6.015778000000E+01;
+		//B.f = 1.127973000000E+01;
+		//A, B 직접 지정
 
-	ans = FPAdder(A, B);
-	orgAns.f = A.f + B.f;
+		ans = FPAdder(A, B);
+		orgAns.f = A.f + B.f;
+		if (checknum == 1) {
+			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			checknum = 0;
+			printf("\n\n******************************\n");
+		}
+		nnn++;
+	}
 
-	printf("%e    +    %e    =    %e,   %e\n", A.f, B.f, orgAns.f, ans.f);
-
-	printf("\n\n******************************");
+	fclose(input);
 }
 /*
 sign = 1
