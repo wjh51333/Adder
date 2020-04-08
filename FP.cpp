@@ -92,12 +92,12 @@ float_cast FPAdder(float_cast a, float_cast b) {
 	if (subEx == 0) {//exponents equal
 		checknum = 1;
 		z.parts.exponent = a.parts.exponent;
-		z.parts.mantisa = a.parts.mantisa + b.parts.mantisa;
+		 = a.parts.mantisa + b.parts.mantisa;
 
-		if (z.parts.mantisa == 0)
+		if (sum == 0)
 			z.f = 0;
 		else {
-			z.parts.mantisa = z.parts.mantisa >> 1;
+			z.parts.mantisa = sum >> 1;
 			z.parts.exponent++;
 
 			if (z.parts.exponent >= 0xFF) {//is it overflow?
