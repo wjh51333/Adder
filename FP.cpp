@@ -96,15 +96,16 @@ float_cast FPAdder(float_cast a, float_cast b) {
 		if (z.parts.mantisa == 0)
 			z.f = 0;
 		else {
-			if (1) {//is it overflow?
-
+			z.parts.mantisa = z.parts.mantisa >> 1;
+			z.parts.exponent++;
+			
+			if (z.parts.exponent >= 0xFF) {//is it overflow?
+				printf("Overflow\n");
 			}
 			else {
 
 			}
 			//z.parts.mantisa &= 0x7FFFF;
-			z.parts.mantisa = z.parts.mantisa >> 1;
-			z.parts.exponent++;
 		}
 	}
 	else { //shift smaller one to bigger one
@@ -139,7 +140,7 @@ float_cast FPAdder(float_cast a, float_cast b) {
 		//mantisa + matisa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 		//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 		if (sum > 0x7FFFFF) {
-			z.parts.mantisa = (sum >> 1);
+			z.parts.mantisa = (sum >> 1) - 0x400000;
 			z.parts.exponent++;
 		}
 		else
@@ -175,6 +176,10 @@ int main(void) {
 		if (checknum == 1) {
 			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
 			checknum = 0;
+			printf("\n\n******************************\n");
+		}
+		else {
+			printf("++ %d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
 			printf("\n\n******************************\n");
 		}
 		nnn++;
