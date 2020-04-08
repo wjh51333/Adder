@@ -92,7 +92,7 @@ float_cast FPAdder(float_cast a, float_cast b) {
 	if (subEx == 0) {//exponents equal
 		checknum = 1;
 		z.parts.exponent = a.parts.exponent;
-		 = a.parts.mantisa + b.parts.mantisa;
+		sum = a.parts.mantisa + b.parts.mantisa;
 
 		if (sum == 0)
 			z.f = 0;
