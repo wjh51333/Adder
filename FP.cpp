@@ -53,6 +53,7 @@ float_cast makeFP() {
 
 float_cast FPAdder(float_cast a, float_cast b) {
 
+
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
 
@@ -98,7 +99,7 @@ float_cast FPAdder(float_cast a, float_cast b) {
 		else {
 			z.parts.mantisa = z.parts.mantisa >> 1;
 			z.parts.exponent++;
-			
+
 			if (z.parts.exponent >= 0xFF) {//is it overflow?
 				printf("Overflow\n");
 			}
@@ -116,7 +117,8 @@ float_cast FPAdder(float_cast a, float_cast b) {
 				b.parts.mantisa = 0;
 			else {
 				//a.parts.mantisa >>= abs(subEx);
-				b.parts.mantisa = (b.parts.mantisa >> 1) + 0x400000;
+				if (b.parts.exponent != 0) 
+					b.parts.mantisa = (b.parts.mantisa >> 1) + 0x400000;
 
 				if (abs(subEx) > 1)
 					b.parts.mantisa >>= abs(subEx) - 1;
@@ -129,7 +131,8 @@ float_cast FPAdder(float_cast a, float_cast b) {
 				a.parts.mantisa = 0;
 			else {
 				//a.parts.mantisa >>= abs(subEx);
-				a.parts.mantisa = (a.parts.mantisa >> 1) + 0x400000;
+				if (a.parts.exponent != 0)
+					a.parts.mantisa = (a.parts.mantisa >> 1) + 0x400000;
 
 				if (abs(subEx) > 1)
 					a.parts.mantisa >>= abs(subEx) - 1;
@@ -155,7 +158,7 @@ float_cast FPAdder(float_cast a, float_cast b) {
 int main(void) {
 	float_cast A, B, ans;
 	float_cast orgAns;
-	FILE* input= fopen("input.txt","r");
+	FILE* input = fopen("input.txt", "r");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\n");
 	printf("**********************************************************************\n");
@@ -167,22 +170,24 @@ int main(void) {
 
 	while (!feof(input)) {
 		fscanf(input, "%f %f ", &A.f, &B.f);
-		//A.f = 6.015778000000E+01;
-		//B.f = 1.127973000000E+01;
-		//A, B 직접 지정
 
-		ans = FPAdder(A, B);
-		orgAns.f = A.f + B.f;
-		if (checknum == 1) {
-			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-			checknum = 0;
-			printf("\n\n******************************\n");
-		}
-		else {
-			printf("++ %d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-			printf("\n\n******************************\n");
-		}
-		nnn++;
+	//A.f = 1.134724000000E-38;
+	//B.f = 3.848032000000E-36;
+	//A, B 직접 지정
+
+	ans = FPAdder(A, B);
+	orgAns.f = A.f + B.f;
+
+	if (checknum == 1) {
+		printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+		checknum = 0;
+		printf("\n\n******************************\n");
+	}
+	else {
+		printf("++ %d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+		printf("\n\n******************************\n");
+	}
+	nnn++;
 	}
 
 	fclose(input);
