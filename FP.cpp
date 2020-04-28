@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -30,7 +31,7 @@ std::uniform_int_distribution<int>  RandomSign(0, 1);
 int nnn = 1;
 int checknum = 0;
 
-//Union »ç¿ë
+//Union ì‚¬ìš©
 typedef union {
 	float f;
 	struct {
@@ -97,12 +98,12 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 
 void mantisa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	if (abs(subEx) >= 23)	//shift °¡ mantisaÀÇ 23ºñÆ® ³Ñ¾î¼­¸é 0À¸·Î ÃÊ±âÈ­!
+	if (abs(subEx) >= 23)	//shift ê°€ mantisaì˜ 23ë¹„íŠ¸ ë„˜ì–´ì„œë©´ 0ìœ¼ë¡œ ì´ˆê¸°í™”!
 		y.parts.mantisa = 0;
 	else {
 		//a.parts.mantisa >>= abs(subEx);
 		if (y.parts.exponent != 0)
-			y.parts.mantisa = (y.parts.mantisa >> 1) + 0x400000;
+			y.parts.mantisa = (y.parts.mantisa >> 1) | 0x400000;
 
 		if (abs(subEx) > 1)
 			y.parts.mantisa >>= abs(subEx) - 1;
@@ -112,10 +113,10 @@ void mantisa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 
 
-	//¸ÕÀú µÎ °ªÀÌ real numberÀÎÁö ÆÇ´ÜÇØ¾ßÇÑ´Ù. (inf, -inf, 0, -0, NAN)
+	//ë¨¼ì € ë‘ ê°’ì´ real numberì¸ì§€ íŒë‹¨í•´ì•¼í•œë‹¤. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
 
-	//ÀÔ·Â°ªÀÌ INFÀÏ ¼ö °¡ÀÖ³ª?
+	//ì…ë ¥ê°’ì´ INFì¼ ìˆ˜ ê°€ìˆë‚˜?
 	if (a.parts.exponent == 0xFF && a.parts.sign == 0)  //a is inf 
 	{
 		not_real_number
@@ -135,10 +136,10 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	}
 
 
-	float_cast z; //return °ª
+	float_cast z; //return ê°’
 	z.parts.sign = 0;
 	unsigned int sum = 0;
-	//±»ÀÌ 0 µû·Î º¼ÇÊ¿ä¾ø´Ù.
+	//êµ³ì´ 0 ë”°ë¡œ ë³¼í•„ìš”ì—†ë‹¤.
 	if (a.f == 0) //a == 0 || b == 0  return a or b
 		z.f = b.f;
 	else if (b.f == 0)
@@ -202,10 +203,10 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			break;
 		}
 
-		//mantisa + matisa°¡ 23ºñÆ®°¡ ³Ñ¾î°¡¹ö¸®¸é ÀÚµ¿À¸·Î Àß¶ó¹ö¸²! (¿Ö³Ä¸é unionÀÌ´Ï±ñ)
-		//µû¶ó¼­ ¿ì¸®°¡ Á÷Á¢ ³Ñ¾î°¡´Â carry°ªÀ» Ã³¸®ÇØÁà¾ßÇÑ´Ù.
+		//mantisa + matisaê°€ 23ë¹„íŠ¸ê°€ ë„˜ì–´ê°€ë²„ë¦¬ë©´ ìë™ìœ¼ë¡œ ì˜ë¼ë²„ë¦¼! (ì™œëƒë©´ unionì´ë‹ˆê¹)
+		//ë”°ë¼ì„œ ìš°ë¦¬ê°€ ì§ì ‘ ë„˜ì–´ê°€ëŠ” carryê°’ì„ ì²˜ë¦¬í•´ì¤˜ì•¼í•œë‹¤.
 		if (sum > 0x7FFFFF) {
-			z.parts.mantisa = (sum >> 1) - 0x400000;
+			z.parts.mantisa = (sum >> 1) & 0x3FFFFF;
 			z.parts.exponent++;
 		}
 		else
@@ -228,7 +229,7 @@ int main(void) {
 
 	//A = makeFP();
 	//B = makeFP();
-	//A, B ·£´ı ÁöÁ¤
+	//A, B ëœë¤ ì§€ì •
 
 
 	while (nnn < 15) {
@@ -236,7 +237,7 @@ int main(void) {
 
 		//A.f = 1.134724000000E-38;
 		//B.f = 3.848032000000E-36;
-		//A, B Á÷Á¢ ÁöÁ¤
+		//A, B ì§ì ‘ ì§€ì •
 
 		A = makeFP();
 		B = makeFP();
@@ -265,14 +266,14 @@ sign = 1
 exponent = 7e
 mantisa = 0*/
 
-/*¿À¹öÇÃ·Î ¾ğ´õÇÃ·Î ¿¹½Ã°¡ »ı±æ ¼ö ÀÕ³ª
-¿À¹öÇÃ·Î ¾ğ´õÇÃ·Î warning ÀÌ³ª runtime error ¹ß»ı½ÃÅ°³ª¿ä? ¿¹¿ÜÃ³¸®
-´Ü¼øÈ÷ ¿¡·¯Ã³¸®ÇÏ´Â°ÍÀ¸·Î º¸ÀÚ.
-rounding Àº ¹«¾ù? ¾î¶»°Ô ÇÏ³ª¿ä
-shift ÇÒ ¶§ ¸ÇÃ·¿£ 1³Ö°í , ´ãºÎÅÏ 0À¸·Î ³Ö±â?
-exponent, mantissa µÑ´Ù ·£´ıÁ¤¼ö·Î ÀÔ·ÂÇÏ±â
-c++ ·£´ıÁ¤¼ö ³Ö±â
-¿¡·¯Ã¼Å© , med ÀÌ·±½ÄÀ¸·Î °Ë»öÇØº¸±â (Ã´µµ°¡ ¾ø¾î¼­ ±×·³)
+/*ì˜¤ë²„í”Œë¡œ ì–¸ë”í”Œë¡œ ì˜ˆì‹œê°€ ìƒê¸¸ ìˆ˜ ì‡ë‚˜
+ì˜¤ë²„í”Œë¡œ ì–¸ë”í”Œë¡œ warning ì´ë‚˜ runtime error ë°œìƒì‹œí‚¤ë‚˜ìš”? ì˜ˆì™¸ì²˜ë¦¬
+ë‹¨ìˆœíˆ ì—ëŸ¬ì²˜ë¦¬í•˜ëŠ”ê²ƒìœ¼ë¡œ ë³´ì.
+rounding ì€ ë¬´ì—‡? ì–´ë–»ê²Œ í•˜ë‚˜ìš”
+shift í•  ë•Œ ë§¨ì²¨ì—” 1ë„£ê³  , ë‹´ë¶€í„´ 0ìœ¼ë¡œ ë„£ê¸°?
+exponent, mantissa ë‘˜ë‹¤ ëœë¤ì •ìˆ˜ë¡œ ì…ë ¥í•˜ê¸°
+c++ ëœë¤ì •ìˆ˜ ë„£ê¸°
+ì—ëŸ¬ì²´í¬ , med ì´ëŸ°ì‹ìœ¼ë¡œ ê²€ìƒ‰í•´ë³´ê¸° (ì²™ë„ê°€ ì—†ì–´ì„œ ê·¸ëŸ¼)
 */
 
 
