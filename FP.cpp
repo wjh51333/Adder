@@ -31,6 +31,7 @@ std::uniform_int_distribution<int>  RandomSign(0, 1);
 int nnn = 1;
 int checknum = 0;
 
+
 //Union 사용
 typedef union {
 	float f;
@@ -120,7 +121,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	if (a.parts.exponent == 0xFF && a.parts.sign == 0)  //a is inf 
 	{
 		not_real_number
-	} 
+	}
 	else if (a.parts.exponent == 0xFF && a.parts.sign == 1)//a is -inf 
 	{
 		not_real_number
@@ -144,10 +145,9 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		z.f = b.f;
 	else if (b.f == 0)
 		z.f = a.f;
-
+	
 
 	int subEx = a.parts.exponent - b.parts.exponent;
-
 	if (subEx == 0) {//exponents equal
 		checknum = 1;
 		z.parts.exponent = a.parts.exponent;
@@ -155,7 +155,18 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		switch (case_num)
 		{
 		case 1:
-			sum = a.parts.mantisa + b.parts.mantisa;
+			if (a.parts.sign != b.parts.sign) {
+				if (a.parts.mantisa > b.parts.mantisa) {
+					sum = a.parts.mantisa - b.parts.mantisa;
+					z.parts.sign = a.parts.sign;
+				}
+				else {
+					sum = b.parts.mantisa - a.parts.mantisa;
+					z.parts.sign = b.parts.sign;
+				}
+			}
+			else
+				sum = a.parts.mantisa + b.parts.mantisa;
 			break;
 		case 2:
 			sum = LOA(a.parts.mantisa, b.parts.mantisa);
@@ -168,9 +179,20 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		if (sum == 0)
 			z.f = 0;
 		else {
-			z.parts.mantisa = sum >> 1;
-			z.parts.exponent++;
-
+			if (a.parts.sign == b.parts.sign) {
+				z.parts.mantisa = sum >> 1;
+				z.parts.exponent++;
+			}
+			else {
+				int count = 23, tempt=sum;
+				while (tempt>=2) {
+					tempt /= 2;
+					count--;
+				}
+				z.parts.mantisa = sum<< count;
+				z.parts.exponent-=count;
+			}
+			
 			if (z.parts.exponent >= 0xFF) {//is it overflow?
 				printf("Overflow\n");
 			}
@@ -185,7 +207,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 						//b.parts.exponent = a.parts.exponent;
 			mantisa_cal(z, a, b, subEx);
 		}
-		else {// a's exponent < b's exponent => shift mantisa right
+		else{// a's exponent < b's exponent => shift mantisa right
 			  //a.parts.exponent = b.parts.exponent;
 			mantisa_cal(z, b, a, subEx);
 		}
@@ -193,7 +215,17 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		switch (case_num)
 		{
 		case 1:
-			sum = a.parts.mantisa + b.parts.mantisa;
+			if (a.parts.sign != b.parts.sign) {
+				if (a.parts.mantisa > b.parts.mantisa) {
+					sum = a.parts.mantisa - b.parts.mantisa;
+					z.parts.sign = a.parts.sign;
+				}
+				else {
+					sum = b.parts.mantisa - a.parts.mantisa;
+					z.parts.sign = b.parts.sign;
+				}
+			}else
+				sum = a.parts.mantisa + b.parts.mantisa;
 			break;
 		case 2:
 			sum = LOA(a.parts.mantisa, b.parts.mantisa);
@@ -222,7 +254,7 @@ int main(void) {
 	float_cast A, B;
 	float_cast ans, loa, eta1;
 	float_cast orgAns;
-//	FILE* input = fopen("input.txt", "r");
+	FILE* input = fopen("input.txt", "r");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\t\tLOA\t\tETA1\n");
 	printf("**********************************************************************\n");
@@ -233,19 +265,20 @@ int main(void) {
 
 
 	while (nnn < 15) {
-		//fscanf(input, "%f %f ", &A.f, &B.f);
+		fscanf(input, "%f %f ", &A.f, &B.f);
 
-		//A.f = 1.134724000000E-38;
-		//B.f = 3.848032000000E-36;
+		//A.f = -5.868307000000E-17;
+		//B.f = 8.039958000000E-17;
 		//A, B 직접 지정
 
-		A = makeFP();
-		B = makeFP();
+		//A = makeFP();
+		//B = makeFP();
 
+		orgAns.f = A.f + B.f;
 		ans = FPAdder(A, B, 1);
 		loa = FPAdder(A, B, 2);
 		eta1 = FPAdder(A, B, 3);
-		orgAns.f = A.f + B.f;
+		
 
 		if (checknum == 1) {
 			printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
@@ -253,7 +286,7 @@ int main(void) {
 			printf("\n\n******************************\n");
 		}
 		else {
-			printf("++ %d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
 			printf("\n\n******************************\n");
 		}
 		nnn++;
