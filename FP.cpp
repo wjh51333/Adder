@@ -204,6 +204,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			if (a.parts.sign == b.parts.sign) {
 				z.parts.mantisa = sum >> 1;
 				z.parts.exponent++;
+				z.parts.sign = a.parts.sign;
 			}
 			else {
 				int count = 23, tempt=sum;
