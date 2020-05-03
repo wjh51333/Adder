@@ -207,13 +207,13 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 				z.parts.exponent++;
 			}
 			else {
-				int count = 23, tempt=sum;
-				while (tempt>=2) {
-					tempt /= 2;
-					count--;
-				}
-				z.parts.mantisa = sum<< count;
-				z.parts.exponent-=count;
+				int cnt;
+
+				for (cnt = 1; z.parts.mantisa & 0x400000 ? 0 : 1; cnt++)
+					z.parts.mantisa <<= 1;
+
+				z.parts.mantisa <<= 1;
+				z.parts.exponent -= cnt;
 			}
 			
 			if (z.parts.exponent >= 0xFF) {//is it overflow?
@@ -279,6 +279,16 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		// guard && (round bit | sticky | z_m[0]
 		if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantisa & 1)))
 			z.parts.mantisa++;
+		
+		if (z.parts.mantisa & 0x400000 ? 0 : 1) {
+			int cnt;
+
+			for (cnt = 1; z.parts.mantisa & 0x400000 ? 0 : 1; cnt++)
+				z.parts.mantisa <<= 1;
+
+			z.parts.mantisa <<= 1;
+			z.parts.exponent -= cnt;
+		}
 
 		if (z.parts.mantisa == 0)
 			z.f = 0;
