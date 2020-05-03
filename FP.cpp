@@ -9,7 +9,6 @@
 
 #define mask 0xFFF
 #define bitnum 12
-#define emask 0x7FFFFF
 
 /* endianness testing */
 const int EndianTest = 0x04030201;
@@ -98,36 +97,17 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 	return sum;
 }
 
-void extbit_cal(float_cast y, int subEx, int *e)
-{
-	unsigned int m = emask;
-	unsigned int temp = y.parts.mantisa;
-
-	if (subEx >= 23) {
-		e[0] = (temp & emask) ? 1 : 0; // sticky bit
-		e[2] = e[1] = 0; // guard, round -> 0
-	}
-	else {
-		m >>= (23 - subEx);
-		temp &= m;
-
-		e[0] = (temp & m) ? 1 : 0; // sticky bit
-		e[2] = (temp & (1 << (subEx - 1))) ? 1 : 0; // guard bit
-		e[1] = (temp & (1 << (subEx - 2))) ? 1 : 0; // round bit
-	}
-}
-
 void mantisa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	if (subEx >= 23)	//shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
+	if (abs(subEx) >= 23)	//shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
 		y.parts.mantisa = 0;
 	else {
 		//a.parts.mantisa >>= abs(subEx);
 		if (y.parts.exponent != 0)
 			y.parts.mantisa = (y.parts.mantisa >> 1) | 0x400000;
 
-		if (subEx > 1)
-			y.parts.mantisa >>= subEx - 1;
+		if (abs(subEx) > 1)
+			y.parts.mantisa >>= abs(subEx) - 1;
 	}
 }
 
@@ -160,8 +140,6 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	float_cast z; //return 값
 	z.parts.sign = 0;
 	unsigned int sum = 0;
-	int ext_bit[3] = { 0, }; // guard, round, sticky bit
-	
 	//굳이 0 따로 볼필요없다.
 	if (a.f == 0) //a == 0 || b == 0  return a or b
 		z.f = b.f;
@@ -178,7 +156,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		{
 		case 1:
 			if (a.parts.sign != b.parts.sign) {
-				if (a.parts.mantisa > b.parts.mantisa) {
+				if (a.parts.mantisa >= b.parts.mantisa) {
 					sum = a.parts.mantisa - b.parts.mantisa;
 					z.parts.sign = a.parts.sign;
 				}
@@ -187,8 +165,10 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 					z.parts.sign = b.parts.sign;
 				}
 			}
-			else
+			else {
 				sum = a.parts.mantisa + b.parts.mantisa;
+				z.parts.sign = a.parts.sign;
+			}
 			break;
 		case 2:
 			sum = LOA(a.parts.mantisa, b.parts.mantisa);
@@ -204,7 +184,6 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			if (a.parts.sign == b.parts.sign) {
 				z.parts.mantisa = sum >> 1;
 				z.parts.exponent++;
-				z.parts.sign = a.parts.sign;
 			}
 			else {
 				int count = 23, tempt=sum;
@@ -228,13 +207,11 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	else { //shift smaller one to bigger one
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantisa right
 						//b.parts.exponent = a.parts.exponent;
-			extbit_cal(b, subEx, ext_bit);
 			mantisa_cal(z, a, b, subEx);
 		}
 		else{// a's exponent < b's exponent => shift mantisa right
 			  //a.parts.exponent = b.parts.exponent;
-			extbit_cal(a, abs(subEx), ext_bit);
-			mantisa_cal(z, b, a, abs(subEx));
+			mantisa_cal(z, b, a, subEx);
 		}
 
 		switch (case_num)
@@ -249,8 +226,11 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 					sum = b.parts.mantisa - a.parts.mantisa;
 					z.parts.sign = b.parts.sign;
 				}
-			}else
+			}
+			else {
 				sum = a.parts.mantisa + b.parts.mantisa;
+				z.parts.sign = a.parts.sign;
+			}
 			break;
 		case 2:
 			sum = LOA(a.parts.mantisa, b.parts.mantisa);
@@ -263,19 +243,11 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		//mantisa + matisa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 		//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 		if (sum > 0x7FFFFF) {
-			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
-			ext_bit[1] = ext_bit[2]; // round bit
-			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-			
 			z.parts.mantisa = (sum >> 1) & 0x3FFFFF;
 			z.parts.exponent++;
 		}
 		else
 			z.parts.mantisa = sum;
-		
-		// guard && (round bit | sticky | z_m[0]
-		if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantisa & 1)))
-			z.parts.mantisa++;
 
 		if (z.parts.mantisa == 0)
 			z.f = 0;
@@ -297,11 +269,11 @@ int main(void) {
 	//A, B 랜덤 지정
 
 
-	while (nnn < 15) {
+	while (!feof(input)) {
 		fscanf(input, "%f %f ", &A.f, &B.f);
 
-		//A.f = -5.868307000000E-17;
-		//B.f = 8.039958000000E-17;
+		//A.f = -2.603902e+17;
+		//B.f = 3.452340e+17;
 		//A, B 직접 지정
 
 		//A = makeFP();
@@ -319,13 +291,16 @@ int main(void) {
 			printf("\n\n******************************\n");
 		}
 		else {
-			printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			printf( "++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			if (orgAns.f != ans.f)
+				printf("%d: Error!\n", nnn);
 			printf("\n\n******************************\n");
 		}
+
 		nnn++;
 	}
-
-	//fclose(input);
+	
+	fclose(input);
 }
 /*
 sign = 1
