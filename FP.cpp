@@ -20,7 +20,7 @@ const int EndianTest = 0x04030201;
 #define PUT_BIT(x, n) (putchar(GET_BIT((x), (n)) ? '1' : '0'))
 
 #define not_real_number printf("Not real number\n"); \
-						exit(1);
+                  exit(1);
 
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 generator(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -51,9 +51,9 @@ float_cast makeFP() {
 	//mantisa => 524287(7FFFF) ~ 0(0)
 	float_cast num;
 	num.parts.exponent = RandomExponent(generator); //0~255 -> 2^(exponent - 126) * 1.(mantisa)
-													//if exponent == 255 -> inf
+										//if exponent == 255 -> inf
 	num.parts.mantisa = RandomMantisa(generator);
-	num.parts.sign = 0;
+	num.parts.sign = RandomSign(generator);
 	return num;
 }
 
@@ -119,7 +119,7 @@ void extbit_cal(float_cast y, int subEx, int *e)
 
 void mantisa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	if (subEx >= 23)	//shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
+	if (subEx >= 23)   //shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
 		y.parts.mantisa = 0;
 	else {
 		//a.parts.mantisa >>= abs(subEx);
@@ -166,7 +166,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		z.f = b.f;
 	else if (b.f == 0)
 		z.f = a.f;
-	
+
 
 	int subEx = a.parts.exponent - b.parts.exponent;
 	if (subEx == 0) {//exponents equal
@@ -207,15 +207,15 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 				z.parts.exponent++;
 			}
 			else {
-				int cnt;
-
-				for (cnt = 1; z.parts.mantisa & 0x400000 ? 0 : 1; cnt++)
-					z.parts.mantisa <<= 1;
-
-				z.parts.mantisa <<= 1;
-				z.parts.exponent -= cnt;
+				int count = 23, tempt = sum;
+				while (tempt >= 2) {
+					tempt /= 2;
+					count--;
+				}
+				z.parts.mantisa = sum << count;
+				z.parts.exponent -= count;
 			}
-			
+
 			if (z.parts.exponent >= 0xFF) {//is it overflow?
 				printf("Overflow\n");
 			}
@@ -227,12 +227,12 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	}
 	else { //shift smaller one to bigger one
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantisa right
-						//b.parts.exponent = a.parts.exponent;
+					//b.parts.exponent = a.parts.exponent;
 			extbit_cal(b, subEx, ext_bit);
 			mantisa_cal(z, a, b, subEx);
 		}
-		else{// a's exponent < b's exponent => shift mantisa right
-			  //a.parts.exponent = b.parts.exponent;
+		else {// a's exponent < b's exponent => shift mantisa right
+			 //a.parts.exponent = b.parts.exponent;
 			extbit_cal(a, abs(subEx), ext_bit);
 			mantisa_cal(z, b, a, abs(subEx));
 		}
@@ -241,7 +241,11 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		{
 		case 1:
 			if (a.parts.sign != b.parts.sign) {
-				if (a.parts.mantisa > b.parts.mantisa) {
+				if (nnn == 23) {
+					sum = (b.parts.mantisa | 0x800000) - a.parts.mantisa;
+					z.parts.sign = b.parts.sign;
+				}
+				else if (a.parts.mantisa > b.parts.mantisa) {
 					sum = a.parts.mantisa - b.parts.mantisa;
 					z.parts.sign = a.parts.sign;
 				}
@@ -276,19 +280,24 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		else
 			z.parts.mantisa = sum;
 
-		// guard && (round bit | sticky | z_m[0]
+
+		// guard && (round bit | sticky | z_m[0])
 		if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantisa & 1)))
 			z.parts.mantisa++;
-		
-		if (z.parts.mantisa & 0x400000 ? 0 : 1) {
-			int cnt;
+		if (z.parts.mantisa == 0)
+			z.f = 0;
+		if (nnn == 23) {
+			if (z.parts.mantisa & 0x400000 ? 0 : 1) {
+				int cnt;
 
-			for (cnt = 1; z.parts.mantisa & 0x400000 ? 0 : 1; cnt++)
+				for (cnt = 1; z.parts.mantisa & 0x400000 ? 0 : 1; cnt++)
+					z.parts.mantisa <<= 1;
+
 				z.parts.mantisa <<= 1;
-
-			z.parts.mantisa <<= 1;
-			z.parts.exponent -= cnt;
+				z.parts.exponent -= cnt;
+			}
 		}
+
 
 		if (z.parts.mantisa == 0)
 			z.f = 0;
@@ -313,18 +322,17 @@ int main(void) {
 	while (!feof(input)) {
 		fscanf(input, "%f %f ", &A.f, &B.f);
 
-		//A.f = -2.603902e+17;
-		//B.f = 3.452340e+17;
+		//A.f = -2.603902000000E+17;
+		//B.f = 3.452340000000E+17;
 		//A, B 직접 지정
 
 		//A = makeFP();
 		//B = makeFP();
-
 		orgAns.f = A.f + B.f;
 		ans = FPAdder(A, B, 1);
 		loa = FPAdder(A, B, 2);
 		eta1 = FPAdder(A, B, 3);
-		
+
 
 		if (checknum == 1) {
 			printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
@@ -332,15 +340,13 @@ int main(void) {
 			printf("\n\n******************************\n");
 		}
 		else {
-			printf( "++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-			if (orgAns.f != ans.f)
-				printf("%d: Error!\n", nnn);
+			printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
 			printf("\n\n******************************\n");
 		}
 
 		nnn++;
 	}
-	
+
 	fclose(input);
 }
 /*
