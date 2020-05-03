@@ -103,7 +103,7 @@ void extbit_cal(float_cast y, int subEx, int *e)
 	unsigned int m = emask;
 	unsigned int temp = y.parts.mantisa;
 
-	if (subEx > 23) {
+	if (subEx >= 23) {
 		e[0] = (temp & emask) ? 1 : 0; // sticky bit
 		e[2] = e[1] = 0; // guard, round -> 0
 	}
