@@ -25,7 +25,7 @@ const int EndianTest = 0x04030201;
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 generator(rd()); //Standard mersenne_twister_engine seeded with rd()
 std::uniform_int_distribution<int>  RandomExponent(0, 254);
-std::uniform_int_distribution<int>  RandomMantisa(0, 0x7FFFFF);
+std::uniform_int_distribution<int>  RandomMantissa(0, 0x7FFFFF);
 std::uniform_int_distribution<int>  RandomSign(0, 1);
 
 
@@ -37,7 +37,7 @@ int checknum = 0;
 typedef union {
 	float f;
 	struct {
-		unsigned int mantisa : 23;
+		unsigned int mantissa : 23;
 		unsigned int exponent : 8;
 		unsigned int sign : 1;
 	} parts;
@@ -48,11 +48,11 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num);
 
 float_cast makeFP() {
 	//exponet => 127(7F) ~ -128(80)
-	//mantisa => 524287(7FFFF) ~ 0(0)
+	//mantissa => 524287(7FFFF) ~ 0(0)
 	float_cast num;
-	num.parts.exponent = RandomExponent(generator); //0~255 -> 2^(exponent - 126) * 1.(mantisa)
+	num.parts.exponent = RandomExponent(generator); //0~255 -> 2^(exponent - 126) * 1.(mantissa)
 										//if exponent == 255 -> inf
-	num.parts.mantisa = RandomMantisa(generator);
+	num.parts.mantissa = RandomMantissa(generator);
 	num.parts.sign = RandomSign(generator);
 	return num;
 }
@@ -98,10 +98,10 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 	return sum;
 }
 
-void extbit_cal(float_cast y, int subEx, int *e)
+void extbit_cal(unsigned int mantissa, int subEx, int *e)
 {
 	unsigned int m = emask;
-	unsigned int temp = y.parts.mantisa;
+	unsigned int temp = mantissa;
 
 	if (subEx >= 23) {
 		e[0] = (temp & emask) ? 1 : 0; // sticky bit
@@ -117,18 +117,41 @@ void extbit_cal(float_cast y, int subEx, int *e)
 	}
 }
 
-void mantisa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
+void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	if (subEx >= 23)   //shift 가 mantisa의 23비트 넘어서면 0으로 초기화!
-		y.parts.mantisa = 0;
+	if (subEx >= 23)   //shift 가 mantissa의 23비트 넘어서면 0으로 초기화!
+		y.parts.mantissa = 0;
 	else {
-		//a.parts.mantisa >>= abs(subEx);
+		//a.parts.mantissa >>= abs(subEx);
 		if (y.parts.exponent != 0)
-			y.parts.mantisa = (y.parts.mantisa >> 1) | 0x400000;
+			y.parts.mantissa = (y.parts.mantissa >> 1) | 0x400000;
 
 		if (subEx > 1)
-			y.parts.mantisa >>= subEx - 1;
+			y.parts.mantissa >>= subEx - 1;
 	}
+}
+
+unsigned int sum_cal(float_cast &z, float_cast x, float_cast y)
+{
+	unsigned int sum = 0;
+
+	if (x.parts.exponent < y.parts.exponent) {
+		sum = (y.parts.mantissa | 0x800000) - x.parts.mantissa;
+		z.parts.sign = y.parts.sign;
+
+		int cnt;
+		for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
+			sum <<= 1;
+		
+		sum = (sum << 1) & 0x7FFFFF;
+		z.parts.exponent -= cnt;
+	}
+	else {
+		sum = x.parts.mantissa - y.parts.mantissa;
+		z.parts.sign = x.parts.sign;
+	}
+
+	return sum;
 }
 
 float_cast FPAdder(float_cast a, float_cast b, int case_num) {
@@ -177,25 +200,25 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		{
 		case 1:
 			if (a.parts.sign != b.parts.sign) {
-				if (a.parts.mantisa >= b.parts.mantisa) {
-					sum = a.parts.mantisa - b.parts.mantisa;
+				if (a.parts.mantissa >= b.parts.mantissa) {
+					sum = a.parts.mantissa - b.parts.mantissa;
 					z.parts.sign = a.parts.sign;
 				}
 				else {
-					sum = b.parts.mantisa - a.parts.mantisa;
+					sum = b.parts.mantissa - a.parts.mantissa;
 					z.parts.sign = b.parts.sign;
 				}
 			}
 			else {
-				sum = a.parts.mantisa + b.parts.mantisa;
+				sum = a.parts.mantissa + b.parts.mantissa;
 				z.parts.sign = a.parts.sign;
 			}
 			break;
 		case 2:
-			sum = LOA(a.parts.mantisa, b.parts.mantisa);
+			sum = LOA(a.parts.mantissa, b.parts.mantissa);
 			break;
 		case 3:
-			sum = ETA1(a.parts.mantisa, b.parts.mantisa);
+			sum = ETA1(a.parts.mantissa, b.parts.mantissa);
 			break;
 		}
 
@@ -203,17 +226,16 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			z.f = 0;
 		else {
 			if (a.parts.sign == b.parts.sign) {
-				z.parts.mantisa = sum >> 1;
+				z.parts.mantissa = sum >> 1;
 				z.parts.exponent++;
 			}
 			else {
-				int count = 23, tempt = sum;
-				while (tempt >= 2) {
-					tempt /= 2;
-					count--;
-				}
-				z.parts.mantisa = sum << count;
-				z.parts.exponent -= count;
+				int cnt;
+				for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
+					sum <<= 1;
+		
+				z.parts.matissa = (sum << 1) & 0x7FFFFF;
+				z.parts.exponent -= cnt;
 			}
 
 			if (z.parts.exponent >= 0xFF) {//is it overflow?
@@ -222,84 +244,64 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			else {
 
 			}
-			//z.parts.mantisa &= 0x7FFFF;
+			//z.parts.mantissa &= 0x7FFFF;
 		}
 	}
 	else { //shift smaller one to bigger one
-		if (subEx > 0) {// a's exponent > b's exponent  => shift mantisa right
+		if (subEx > 0) {// a's exponent > b's exponent  => shift mantissa right
 					//b.parts.exponent = a.parts.exponent;
-			extbit_cal(b, subEx, ext_bit);
-			mantisa_cal(z, a, b, subEx);
+			extbit_cal(b.parts.mantissa, subEx, ext_bit);
+			mantissa_cal(z, a, b, subEx);
 		}
-		else {// a's exponent < b's exponent => shift mantisa right
+		else {// a's exponent < b's exponent => shift mantissa right
 			 //a.parts.exponent = b.parts.exponent;
-			extbit_cal(a, abs(subEx), ext_bit);
-			mantisa_cal(z, b, a, abs(subEx));
+			extbit_cal(a.parts.mantissa, abs(subEx), ext_bit);
+			mantissa_cal(z, b, a, abs(subEx));
 		}
 
 		switch (case_num)
 		{
 		case 1:
 			if (a.parts.sign != b.parts.sign) {
-				if (nnn == 23) {
-					sum = (b.parts.mantisa | 0x800000) - a.parts.mantisa;
-					z.parts.sign = b.parts.sign;
-				}
-				else if (a.parts.mantisa > b.parts.mantisa) {
-					sum = a.parts.mantisa - b.parts.mantisa;
-					z.parts.sign = a.parts.sign;
-				}
-				else {
-					sum = b.parts.mantisa - a.parts.mantisa;
-					z.parts.sign = b.parts.sign;
-				}
+				if (a.parts.mantissa > b.parts.mantissa)
+					sum = sum_cal(z, a, b);
+				else
+					sum = sum_cal(z, b, a);
+
+				ext_bit[2] = 0;
 			}
 			else {
-				sum = a.parts.mantisa + b.parts.mantisa;
+				sum = a.parts.mantissa + b.parts.mantissa;
 				z.parts.sign = a.parts.sign;
 			}
 			break;
 		case 2:
-			sum = LOA(a.parts.mantisa, b.parts.mantisa);
+			sum = LOA(a.parts.mantissa, b.parts.mantissa);
 			break;
 		case 3:
-			sum = ETA1(a.parts.mantisa, b.parts.mantisa);
+			sum = ETA1(a.parts.mantissa, b.parts.mantissa);
 			break;
 		}
 
-		//mantisa + matisa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
+		//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 		//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 		if (sum > 0x7FFFFF) {
 			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
 			ext_bit[1] = ext_bit[2]; // round bit
 			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
 
-			z.parts.mantisa = (sum >> 1) & 0x3FFFFF;
+			z.parts.mantissa = (sum >> 1) & 0x3FFFFF;
 			z.parts.exponent++;
 		}
 		else
-			z.parts.mantisa = sum;
+			z.parts.mantissa = sum;
 
 
 		// guard && (round bit | sticky | z_m[0])
-		if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantisa & 1)))
-			z.parts.mantisa++;
-		if (z.parts.mantisa == 0)
-			z.f = 0;
-		if (nnn == 23) {
-			if (z.parts.mantisa & 0x400000 ? 0 : 1) {
-				int cnt;
-
-				for (cnt = 1; z.parts.mantisa & 0x400000 ? 0 : 1; cnt++)
-					z.parts.mantisa <<= 1;
-
-				z.parts.mantisa <<= 1;
-				z.parts.exponent -= cnt;
-			}
-		}
-
-
-		if (z.parts.mantisa == 0)
+		if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantissa & 1)))
+			z.parts.mantissa++;
+		
+		if (z.parts.mantissa == 0)
 			z.f = 0;
 	}
 	return z;
@@ -352,7 +354,7 @@ int main(void) {
 /*
 sign = 1
 exponent = 7e
-mantisa = 0*/
+mantissa = 0*/
 
 /*오버플로 언더플로 예시가 생길 수 잇나
 오버플로 언더플로 warning 이나 runtime error 발생시키나요? 예외처리
