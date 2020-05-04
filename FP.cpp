@@ -234,7 +234,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 				for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
 					sum <<= 1;
 		
-				z.parts.matissa = (sum << 1) & 0x7FFFFF;
+				z.parts.mantissa = (sum << 1) & 0x7FFFFF;
 				z.parts.exponent -= cnt;
 			}
 
