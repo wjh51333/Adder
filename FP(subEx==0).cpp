@@ -33,7 +33,7 @@ int nnn = 1;
 int checknum = 0;
 
 
-//Union »ç¿ë
+//Union ì‚¬ìš©
 typedef union {
 	float f;
 	struct {
@@ -118,7 +118,7 @@ void extbit_cal(unsigned int mantissa, int subEx, int *e)
 
 void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	if (subEx >= 23)   //shift °¡ mantissaÀÇ 23ºñÆ® ³Ñ¾î¼­¸é 0À¸·Î ÃÊ±âÈ­!
+	if (subEx >= 23)   //shift ê°€ mantissaì˜ 23ë¹„íŠ¸ ë„˜ì–´ì„œë©´ 0ìœ¼ë¡œ ì´ˆê¸°í™”!
 		y.parts.mantissa = 0;
 	else {
 		//a.parts.mantissa >>= abs(subEx);
@@ -156,10 +156,10 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y)
 float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 
 
-	//¸ÕÀú µÎ °ªÀÌ real numberÀÎÁö ÆÇ´ÜÇØ¾ßÇÑ´Ù. (inf, -inf, 0, -0, NAN)
+	//ë¨¼ì € ë‘ ê°’ì´ real numberì¸ì§€ íŒë‹¨í•´ì•¼í•œë‹¤. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
 
-	//ÀÔ·Â°ªÀÌ INFÀÏ ¼ö °¡ÀÖ³ª?
+	//ì…ë ¥ê°’ì´ INFì¼ ìˆ˜ ê°€ìˆë‚˜?
 	if (a.parts.exponent == 0xFF && a.parts.sign == 0)  //a is inf 
 	{
 		not_real_number
@@ -179,11 +179,11 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	}
 
 
-	float_cast z; //return °ª
+	float_cast z; //return ê°’
 	z.parts.sign = 0;
 	unsigned int sum = 0;
 	int ext_bit[3] = { 0, }; // guard, round, sticky bit
-	//±»ÀÌ 0 µû·Î º¼ÇÊ¿ä¾ø´Ù.
+	//êµ³ì´ 0 ë”°ë¡œ ë³¼í•„ìš”ì—†ë‹¤.
 	if (a.f == 0) //a == 0 || b == 0  return a or b
 		z.f = b.f;
 	else if (b.f == 0)
@@ -261,8 +261,8 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	}
 	unsigned int z_mantissa;
 
-	//mantissa + mantissa°¡ 23ºñÆ®°¡ ³Ñ¾î°¡¹ö¸®¸é ÀÚµ¿À¸·Î Àß¶ó¹ö¸²! (¿Ö³Ä¸é unionÀÌ´Ï±ñ)
-	//µû¶ó¼­ ¿ì¸®°¡ Á÷Á¢ ³Ñ¾î°¡´Â carry°ªÀ» Ã³¸®ÇØÁà¾ßÇÑ´Ù.
+	//mantissa + mantissaê°€ 23ë¹„íŠ¸ê°€ ë„˜ì–´ê°€ë²„ë¦¬ë©´ ìë™ìœ¼ë¡œ ì˜ë¼ë²„ë¦¼! (ì™œëƒë©´ unionì´ë‹ˆê¹)
+	//ë”°ë¼ì„œ ìš°ë¦¬ê°€ ì§ì ‘ ë„˜ì–´ê°€ëŠ” carryê°’ì„ ì²˜ë¦¬í•´ì¤˜ì•¼í•œë‹¤.
 	if (sum > 0x7FFFFF) {
 		if ((sum & 0xc00000) == 0x800000) {
 			printf("1\n");
@@ -274,7 +274,10 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		}
 		else {
 			printf("2\n");
-			z.parts.mantissa = sum >> 1;
+			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
+			ext_bit[1] = ext_bit[2]; // round bit
+			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
+			z.parts.mantissa = sum>>1;
 			z.parts.exponent++;
 		}
 	}
@@ -288,18 +291,21 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			z.parts.exponent++;
 		}
 		else {
-			int cnt;
+			int cnt=1;
 			printf("4\n");
-			for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++) {
+			if (z.parts.exponent != 0) {
+				for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++) {
+					if (z.parts.exponent - cnt == 0)
+						break;
+					sum <<= 1;
+				}
 				if (z.parts.exponent - cnt == 0)
-					break;
-				sum <<= 1;
-			}
-			if (z.parts.exponent - cnt == 0)
+					z.parts.mantissa = sum;
+				else
+					z.parts.mantissa = (sum << 1) & 0x7FFFFF;
+				z.parts.exponent -= cnt;
+			}else
 				z.parts.mantissa = sum;
-			else
-				z.parts.mantissa = (sum << 1) & 0x7FFFFF;
-			z.parts.exponent -= cnt;
 		}
 	}
 
@@ -354,43 +360,43 @@ int main(void) {
 
 	//A = makeFP();
 	//B = makeFP();
-	//A, B ·£´ı ÁöÁ¤
+	//A, B ëœë¤ ì§€ì •
 
 	int subEx0_cnt = 1;
-	while (subEx0_cnt<=30) {
+	while (subEx0_cnt<=300) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
-	//A.f = -1.315185e-20;
-	//B.f = -1.179307e-20;
-	//A, B Á÷Á¢ ÁöÁ¤
-	do {
-		A = makeFP();
-		B = makeFP();
-	} while (A.parts.exponent != B.parts.exponent);
-	orgAns.f = A.f + B.f;
-	ans = FPAdder(A, B, 1);
-	//loa = FPAdder(A, B, 2);
-	//eta1 = FPAdder(A, B, 3);
+		//A.f = 3.378305e+38;
+		//B.f = 2.034834e+38;
+		//A, B ì§ì ‘ ì§€ì •
+		do {
+			A = makeFP();
+			B = makeFP();
+		} while (A.parts.exponent != B.parts.exponent);
+		orgAns.f = A.f + B.f;
+		ans = FPAdder(A, B, 1);
+		//loa = FPAdder(A, B, 2);
+		//eta1 = FPAdder(A, B, 3);
 
 
-	if (checknum == 1) {
-		printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-		//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-		checknum = 0;
-		if (ans.f != orgAns.f) {
-			printf("Error!\n");
-			//fprintf(output,"%e %e\n",A.f, B.f);
+		if (checknum == 1) {
+			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			checknum = 0;
+			if (ans.f != orgAns.f) {
+				printf("Error!\n");
+				//fprintf(output,"%e %e\n",A.f, B.f);
+			}
+			printf("\n\n******************************\n");
+			subEx0_cnt++;
 		}
-		printf("\n\n******************************\n");
-		subEx0_cnt++;
-	}
-	else {
-		//printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-		//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-		//printf("\n\n******************************\n");
-	}
+		else {
+			//printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			//printf("\n\n******************************\n");
+		}
 
-	nnn++;
+		nnn++;
 	}
 
 	//fclose(output);
@@ -401,14 +407,14 @@ sign = 1
 exponent = 7e
 mantissa = 0*/
 
-/*¿À¹öÇÃ·Î ¾ğ´õÇÃ·Î ¿¹½Ã°¡ »ı±æ ¼ö ÀÕ³ª
-¿À¹öÇÃ·Î ¾ğ´õÇÃ·Î warning ÀÌ³ª runtime error ¹ß»ı½ÃÅ°³ª¿ä? ¿¹¿ÜÃ³¸®
-´Ü¼øÈ÷ ¿¡·¯Ã³¸®ÇÏ´Â°ÍÀ¸·Î º¸ÀÚ.
-rounding Àº ¹«¾ù? ¾î¶»°Ô ÇÏ³ª¿ä
-shift ÇÒ ¶§ ¸ÇÃ·¿£ 1³Ö°í , ´ãºÎÅÏ 0À¸·Î ³Ö±â?
-exponent, mantissa µÑ´Ù ·£´ıÁ¤¼ö·Î ÀÔ·ÂÇÏ±â
-c++ ·£´ıÁ¤¼ö ³Ö±â
-¿¡·¯Ã¼Å© , med ÀÌ·±½ÄÀ¸·Î °Ë»öÇØº¸±â (Ã´µµ°¡ ¾ø¾î¼­ ±×·³)
+/*ì˜¤ë²„í”Œë¡œ ì–¸ë”í”Œë¡œ ì˜ˆì‹œê°€ ìƒê¸¸ ìˆ˜ ì‡ë‚˜
+ì˜¤ë²„í”Œë¡œ ì–¸ë”í”Œë¡œ warning ì´ë‚˜ runtime error ë°œìƒì‹œí‚¤ë‚˜ìš”? ì˜ˆì™¸ì²˜ë¦¬
+ë‹¨ìˆœíˆ ì—ëŸ¬ì²˜ë¦¬í•˜ëŠ”ê²ƒìœ¼ë¡œ ë³´ì.
+rounding ì€ ë¬´ì—‡? ì–´ë–»ê²Œ í•˜ë‚˜ìš”
+shift í•  ë•Œ ë§¨ì²¨ì—” 1ë„£ê³  , ë‹´ë¶€í„´ 0ìœ¼ë¡œ ë„£ê¸°?
+exponent, mantissa ë‘˜ë‹¤ ëœë¤ì •ìˆ˜ë¡œ ì…ë ¥í•˜ê¸°
+c++ ëœë¤ì •ìˆ˜ ë„£ê¸°
+ì—ëŸ¬ì²´í¬ , med ì´ëŸ°ì‹ìœ¼ë¡œ ê²€ìƒ‰í•´ë³´ê¸° (ì²™ë„ê°€ ì—†ì–´ì„œ ê·¸ëŸ¼)
 */
 
 
