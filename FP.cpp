@@ -265,7 +265,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 	if (sum > 0x7FFFFF) {
 		if (subEx == 0) {
-			if ((sum & 0xc00000) == 0x800000) {
+			if ((sum & 0x800000) == 0x800000) {
 				printf("1\n");
 
 				if (z.parts.exponent != 0) {
@@ -274,8 +274,10 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 					ext_bit[1] = ext_bit[2]; // round bit
 					ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
 				}
-				else
-					z.parts.mantissa = sum & 0x3FFFFF;
+				else {
+					//z.parts.mantissa = sum & 0x3FFFFF;
+					z.parts.mantissa = sum;
+				}
 				z.parts.exponent++;
 			}
 			else {
