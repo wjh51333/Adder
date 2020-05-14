@@ -264,22 +264,16 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 	//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 	if (sum > 0x7FFFFF) {
-		if ((sum & 0xc00000) == 0x800000) {
 			printf("1\n");
-			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
-			ext_bit[1] = ext_bit[2]; // round bit
-			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-			z.parts.mantissa = (sum >> 1);
+			if (z.parts.exponent != 0) {
+				z.parts.mantissa = (sum >> 1) & 0x3FFFFF;
+				ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
+				ext_bit[1] = ext_bit[2]; // round bit
+				ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
+			}
+			else
+				z.parts.mantissa = sum & 0x3FFFFF;
 			z.parts.exponent++;
-		}
-		else {
-			printf("2\n");
-			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
-			ext_bit[1] = ext_bit[2]; // round bit
-			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-			z.parts.mantissa = sum>>1;
-			z.parts.exponent++;
-		}
 	}
 	else {
 		if (a.parts.sign == b.parts.sign) {
@@ -310,7 +304,6 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	}
 
 	/*normalize*/
-
 	//overflow!
 	if ((z_mantissa = z.parts.mantissa & 0x400000) == 0 && (z.parts.exponent >= 0xFF)) {
 		printf("\noverflow!\n");
@@ -343,8 +336,6 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		z.f = 0;
 	}
 
-	//if (z.parts.exponent == 0xff)
-	//	not_real_number;
 	return z;
 }
 
@@ -364,15 +355,15 @@ int main(void) {
 
 	int subEx0_cnt = 1;
 	while (subEx0_cnt<=300) {
-		//fscanf(input, "%f %f ", &A.f, &B.f);
+		fscanf(input, "%f %f ", &A.f, &B.f);
 
 		//A.f = 3.378305e+38;
 		//B.f = 2.034834e+38;
 		//A, B 직접 지정
-		do {
-			A = makeFP();
-			B = makeFP();
-		} while (A.parts.exponent != B.parts.exponent);
+		//do {
+		//	A = makeFP();
+		//	B = makeFP();
+		//} while (A.parts.exponent != B.parts.exponent);
 		orgAns.f = A.f + B.f;
 		ans = FPAdder(A, B, 1);
 		//loa = FPAdder(A, B, 2);
