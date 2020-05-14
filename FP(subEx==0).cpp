@@ -288,11 +288,15 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	else {
 		if (a.parts.sign == b.parts.sign) {
 			printf("3\n");
-			ext_bit[0] = ext_bit[1]; // round bit
-			ext_bit[1] = ext_bit[2]; // round bit
-			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-			z.parts.mantissa = sum >> 1;
-			z.parts.exponent++;
+			if (z.parts.exponent != 0) {
+				ext_bit[0] = ext_bit[1]; // round bit
+				ext_bit[1] = ext_bit[2]; // round bit
+				ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
+				z.parts.mantissa = sum >> 1;
+				z.parts.exponent++;
+			}
+			else
+				z.parts.mantissa = sum;
 		}
 		else {
 			int cnt = 1;
