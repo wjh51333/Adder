@@ -134,8 +134,22 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y)
 {
 	unsigned int sum = 0;
 
-	sum = x.parts.mantissa - y.parts.mantissa;
-	z.parts.sign = x.parts.sign;
+	if (x.parts.exponent < y.parts.exponent) {
+		sum = (y.parts.mantissa | 0x800000) - x.parts.mantissa;
+		z.parts.sign = y.parts.sign;
+
+		int cnt;
+		for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
+			sum <<= 1;
+
+		sum = (sum << 1) & 0x7FFFFF;
+		z.parts.exponent -= cnt;
+	}
+	else {
+		sum = x.parts.mantissa - y.parts.mantissa;
+		z.parts.sign = x.parts.sign;
+	}
+
 	return sum;
 }
 
