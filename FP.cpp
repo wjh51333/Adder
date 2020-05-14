@@ -265,29 +265,18 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 	if (sum > 0x7FFFFF) {
 		if (subEx == 0) {
-			if ((sum & 0x800000) == 0x800000) {
-				printf("1\n");
 
-				if (z.parts.exponent != 0) {
-					z.parts.mantissa = sum >> 1;
-					ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
-					ext_bit[1] = ext_bit[2]; // round bit
-					ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-				}
-				else {
-					//z.parts.mantissa = sum & 0x3FFFFF;
-					z.parts.mantissa = sum;
-				}
-				z.parts.exponent++;
-			}
-			else {
-				printf("2\n");
+			if (z.parts.exponent != 0) {
+				z.parts.mantissa = sum >> 1;
 				ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
 				ext_bit[1] = ext_bit[2]; // round bit
 				ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-				z.parts.mantissa = sum >> 1;
-				z.parts.exponent++;
 			}
+			else {
+				//z.parts.mantissa = sum & 0x3FFFFF;
+				z.parts.mantissa = sum;
+			}
+			z.parts.exponent++;
 		}
 		else {
 			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
@@ -389,7 +378,7 @@ int main(void) {
 	//B = makeFP();
 	//A, B 랜덤 지정
 
-	while (nnn<=100) {
+	while (nnn <= 100) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
 		//A.f = 6.32156713e-29;
