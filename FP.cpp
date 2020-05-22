@@ -102,23 +102,39 @@ void extbit_cal(unsigned int mantissa, int subEx, int *e)
 	unsigned int m = emask;
 	unsigned int temp = mantissa;
 
-	if (subEx >= 23) {
-		e[0] = (temp & emask) ? 1 : 0; // sticky bit
-		e[2] = e[1] = 0; // guard, round -> 0
+	if (subEx >= 25) {
+		e[0] = (temp & m) ? 1 : 0; // sticky bit
+
+		// round bit
+		if (subEx == 25) 
+			e[1] = 1;
+		else 
+			e[1] = 0;
+
+		e[2] = 0; // guard bit -> 0
+	}
+	else if (subEx == 24) {
+		e[0] = (temp & m) ? 1 : 0; // sticky bit
+		e[1] = (temp & (1 << 23)) ? 1 : 0; // round bit
+		e[2] = 1; // guard bit
 	}
 	else {
 		m >>= (23 - subEx);
 		temp &= m;
 
-		e[0] = (temp & m) ? 1 : 0; // sticky bit
+		if (subEx >= 2) {
+			e[0] = (temp & (m >> 2)) ? 1 : 0; // sticky bit
+			e[1] = (temp & (1 << (subEx - 2))) ? 1 : 0; // round bit
+		}
+		
 		e[2] = (temp & (1 << (subEx - 1))) ? 1 : 0; // guard bit
-		e[1] = (temp & (1 << (subEx - 2))) ? 1 : 0; // round bit
 	}
 }
 
 void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	if (subEx >= 23)   //shift 가 mantissa의 23비트 넘어서면 0으로 초기화!
+	
+	if (subEx > 23)   //shift 가 mantissa의 23비트 넘어서면 0으로 초기화!
 		y.parts.mantissa = 0;
 	else {
 		//a.parts.mantissa >>= abs(subEx);
@@ -132,22 +148,48 @@ void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 
 unsigned int sum_cal(float_cast &z, float_cast x, float_cast y)
 {
-	unsigned int sum = 0;
-
+	unsigned int sum = 0, temp;
+	unsigned int esum = 0;
+	
+	for (int i = 0; i < 3; i++)
+		esum += e[i] << i;
+	
 	if (x.parts.exponent < y.parts.exponent) {
-		sum = (y.parts.mantissa | 0x800000) - x.parts.mantissa;
+		sum = ((y.parts.mantissa | 0x800000) << 3) - ((x.parts.mantissa << 3) + esum);
 		z.parts.sign = y.parts.sign;
 
 		int cnt;
-		for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
-			sum <<= 1;
+		temp = sum;
+		for (cnt = 1; temp & 0x2000000 ? 0 : 1; cnt++)
+			temp <<= 1;
 
-		sum = (sum << 1) & 0x7FFFFF;
+		if (cnt >= 3) {
+			for (int i = 0; i < 3; i++)
+				e[i] = 0;
+		}
+		else {
+			esum = sum & (0x7 >> cnt);
+
+			for (int i = cnt; i < 3; i++)
+				e[i] = (esum & (1 << (i - cnt))) ? 1 : 0;
+
+			for (int i = 0; i < cnt; i++)
+				e[i] = 0;
+
+			sum >>= 3 - cnt;
+		}
+		
+		sum &= 0x7FFFFF;
 		z.parts.exponent -= cnt;
 	}
 	else {
-		sum = x.parts.mantissa - y.parts.mantissa;
+		sum = (x.parts.mantissa << 3) - ((y.parts.mantissa << 3) + esum);
 		z.parts.sign = x.parts.sign;
+		
+		esum = sum & 0x7;
+		for (int i = 0; i < 3; i++)
+			e[i] = (esum & (1 << i)) ? 1 : 0;
+		sum >>= 3;
 	}
 
 	return sum;
