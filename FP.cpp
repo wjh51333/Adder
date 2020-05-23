@@ -282,11 +282,9 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		case 1:
 			if (a.parts.sign != b.parts.sign) {
 				if (a.parts.mantissa > b.parts.mantissa)
-					sum = sum_cal(z, a, b);
+					sum = sum_cal(z, a, b, ext_bit);
 				else
-					sum = sum_cal(z, b, a);
-
-				ext_bit[2] = 0;
+					sum = sum_cal(z, b, a, ext_bit);
 			}
 			else {
 				sum = a.parts.mantissa + b.parts.mantissa;
