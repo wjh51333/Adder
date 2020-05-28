@@ -153,7 +153,8 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 
 	if (e == NULL) {
 		sum = x.parts.mantissa - y.parts.mantissa;
-		x.parts.sign = x.parts.sign;
+		z.parts.sign = x.parts.sign;
+		z.parts.exponent = x.parts.exponent;
 		return sum;
 	}
 	for (int i = 0; i < 3; i++)
@@ -239,6 +240,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 
 	int subEx = a.parts.exponent - b.parts.exponent;
 	if (subEx != 0) {//exponents equal
+		checknum = 1;
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantissa right
 							//b.parts.exponent = a.parts.exponent;
 			extbit_cal(b.parts.mantissa, subEx, ext_bit);
@@ -258,13 +260,13 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			if (a.parts.mantissa > b.parts.mantissa) {
 				if (subEx != 0)
 					sum = sum_cal(z, a, b, ext_bit);
-				else 
+				else
 					sum = sum_cal(z, a, b, NULL);
 			}
 			else {
 				if (subEx != 0)
 					sum = sum_cal(z, b, a, ext_bit);
-				else 
+				else
 					sum = sum_cal(z, b, a, NULL);
 			}
 		}
@@ -389,7 +391,7 @@ int main(void) {
 	float_cast ans, loa, eta1;
 	float_cast orgAns;
 	//FILE* input = fopen("input(subEx=0).txt", "r");
-	FILE* output = fopen("ErrorOutput.txt", "w");
+	//FILE* output = fopen("ErrorOutput.txt", "w");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\t\tLOA\t\tETA1\n");
 	printf("**********************************************************************\n");
@@ -398,45 +400,45 @@ int main(void) {
 	//B = makeFP();
 	//A, B 랜덤 지정
 
-	while (nnn <= 1000) {
+	//while (nnn <= 10000) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
-	/*A.f = -1.912118e-36;
-	B.f = -7.781059e-39;*/
+		A.f = -2.19334587e-21;
+		B.f = 3.02447080e-21;
 
-	//A, B 직접 지정
-	A = makeFP();
-	B = makeFP();
-	orgAns.f = A.f + B.f;
-	ans = FPAdder(A, B, 1);
-	//loa = FPAdder(A, B, 2);
-	//eta1 = FPAdder(A, B, 3);
+		//A, B 직접 지정
+		/*A = makeFP();
+		B = makeFP();*/
+		orgAns.f = A.f + B.f;
+		ans = FPAdder(A, B, 1);
+		//loa = FPAdder(A, B, 2);
+		//eta1 = FPAdder(A, B, 3);
 
 
-	if (checknum == 1) {
-		printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-		//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-		checknum = 0;
-		if (ans.f != orgAns.f) {
-			printf("Error!\n");
-			fprintf(output,"%e %e\n",A.f, B.f);
+		if (checknum == 1) {
+			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			checknum = 0;
+			if (ans.f != orgAns.f) {
+				printf("Error!\n");
+				//fprintf(output, "%e %e\n", A.f, B.f);
+			}
+			printf("\n\n******************************\n");
 		}
-		printf("\n\n******************************\n");
-	}
-	else {
-		printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-		//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-		if (ans.f != orgAns.f) {
-			printf("Error!\n");
-			fprintf(output,"%e %e\n",A.f, B.f);
+		else {
+			printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			if (ans.f != orgAns.f) {
+				printf("Error!\n");
+				printf("%e %e\n", A.f, B.f);
+			}
+			printf("\n\n******************************\n");
 		}
-		printf("\n\n******************************\n");
-	}
 
-	nnn++;
-	}
+		nnn++;
+	//}
 
-	fclose(output);
+	//fclose(output);
 	//fclose(input);
 }
 /*
