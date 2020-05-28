@@ -97,10 +97,13 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 	return sum;
 }
 
-void extbit_cal(unsigned int mantissa, int subEx, int *e)
+void extbit_cal(float_cast x, int subEx, int *e)
 {
 	unsigned int m = emask;
-	unsigned int temp = mantissa;
+	unsigned int temp = x.parts.mantissa;
+	
+	if (x.parts.exponent == 0)
+		subEx--;
 
 	if (subEx >= 25) {
 		e[0] = (temp & m) ? 1 : 0; // sticky bit
@@ -243,12 +246,12 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		checknum = 1;
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantissa right
 							//b.parts.exponent = a.parts.exponent;
-			extbit_cal(b.parts.mantissa, subEx, ext_bit);
+			extbit_cal(b, subEx, ext_bit);
 			mantissa_cal(z, a, b, subEx);
 		}
 		else {// a's exponent < b's exponent => shift mantissa right
 			 //a.parts.exponent = b.parts.exponent;
-			extbit_cal(a.parts.mantissa, abs(subEx), ext_bit);
+			extbit_cal(a, abs(subEx), ext_bit);
 			mantissa_cal(z, b, a, abs(subEx));
 		}
 	}
@@ -273,6 +276,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		else {
 			sum = a.parts.mantissa + b.parts.mantissa;
 			z.parts.sign = a.parts.sign;
+			
 			if(subEx == 0)
 				z.parts.exponent = a.parts.exponent;
 		}
