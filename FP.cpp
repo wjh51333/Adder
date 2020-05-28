@@ -183,6 +183,8 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 		if (cnt >= 3) {
 			for (int i = 0; i < 3; i++)
 				e[i] = 0;
+			
+			sum <<= cnt - 3;
 		}
 		else {
 			esum = sum & (0x7 >> cnt);
