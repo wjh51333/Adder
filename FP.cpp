@@ -106,9 +106,9 @@ void extbit_cal(unsigned int mantissa, int subEx, int *e)
 		e[0] = (temp & m) ? 1 : 0; // sticky bit
 
 		// round bit
-		if (subEx == 25) 
+		if (subEx == 25)
 			e[1] = 1;
-		else 
+		else
 			e[1] = 0;
 
 		e[2] = 0; // guard bit -> 0
@@ -126,14 +126,14 @@ void extbit_cal(unsigned int mantissa, int subEx, int *e)
 			e[0] = (temp & (m >> 2)) ? 1 : 0; // sticky bit
 			e[1] = (temp & (1 << (subEx - 2))) ? 1 : 0; // round bit
 		}
-		
+
 		e[2] = (temp & (1 << (subEx - 1))) ? 1 : 0; // guard bit
 	}
 }
 
 void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
-	
+
 	if (subEx > 23)   //shift 가 mantissa의 23비트 넘어서면 0으로 초기화!
 		y.parts.mantissa = 0;
 	else {
@@ -146,14 +146,19 @@ void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	}
 }
 
-unsigned int sum_cal(float_cast &z, float_cast x, float_cast y)
+unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 {
 	unsigned int sum = 0, temp;
 	unsigned int esum = 0;
-	
+
+	if (e == NULL) {
+		sum = x.parts.mantissa - y.parts.mantissa;
+		x.parts.sign = x.parts.sign;
+		return sum;
+	}
 	for (int i = 0; i < 3; i++)
 		esum += e[i] << i;
-	
+
 	if (x.parts.exponent < y.parts.exponent) {
 		sum = ((y.parts.mantissa | 0x800000) << 3) - ((x.parts.mantissa << 3) + esum);
 		z.parts.sign = y.parts.sign;
@@ -178,14 +183,14 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y)
 
 			sum >>= 3 - cnt;
 		}
-		
+
 		sum &= 0x7FFFFF;
 		z.parts.exponent -= cnt;
 	}
 	else {
 		sum = (x.parts.mantissa << 3) - ((y.parts.mantissa << 3) + esum);
 		z.parts.sign = x.parts.sign;
-		
+
 		esum = sum & 0x7;
 		for (int i = 0; i < 3; i++)
 			e[i] = (esum & (1 << i)) ? 1 : 0;
@@ -233,41 +238,9 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 
 
 	int subEx = a.parts.exponent - b.parts.exponent;
-	if (subEx == 0) {//exponents equal
-		checknum = 1;
-		z.parts.exponent = a.parts.exponent;
-
-		switch (case_num)
-		{
-		case 1:
-			if (a.parts.sign != b.parts.sign) {
-				if (a.parts.mantissa >= b.parts.mantissa) {
-					sum = a.parts.mantissa - b.parts.mantissa;
-					z.parts.sign = a.parts.sign;
-				}
-				else {
-					sum = b.parts.mantissa - a.parts.mantissa;
-					z.parts.sign = b.parts.sign;
-				}
-			}
-			else {
-				sum = a.parts.mantissa + b.parts.mantissa;
-				z.parts.sign = a.parts.sign;
-			}
-			extbit_cal(sum, abs(subEx), ext_bit);
-			break;
-		case 2:
-			sum = LOA(a.parts.mantissa, b.parts.mantissa);
-			break;
-		case 3:
-			sum = ETA1(a.parts.mantissa, b.parts.mantissa);
-			break;
-		}
-
-	}
-	else { //shift smaller one to bigger one
+	if (subEx != 0) {//exponents equal
 		if (subEx > 0) {// a's exponent > b's exponent  => shift mantissa right
-					//b.parts.exponent = a.parts.exponent;
+							//b.parts.exponent = a.parts.exponent;
 			extbit_cal(b.parts.mantissa, subEx, ext_bit);
 			mantissa_cal(z, a, b, subEx);
 		}
@@ -276,28 +249,36 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 			extbit_cal(a.parts.mantissa, abs(subEx), ext_bit);
 			mantissa_cal(z, b, a, abs(subEx));
 		}
+	}
 
-		switch (case_num)
-		{
-		case 1:
-			if (a.parts.sign != b.parts.sign) {
-				if (a.parts.mantissa > b.parts.mantissa)
+	switch (case_num)
+	{
+	case 1:
+		if (a.parts.sign != b.parts.sign) {
+			if (a.parts.mantissa > b.parts.mantissa) {
+				if (subEx != 0)
 					sum = sum_cal(z, a, b, ext_bit);
-				else
-					sum = sum_cal(z, b, a, ext_bit);
+				else 
+					sum = sum_cal(z, a, b, NULL);
 			}
 			else {
-				sum = a.parts.mantissa + b.parts.mantissa;
-				z.parts.sign = a.parts.sign;
+				if (subEx != 0)
+					sum = sum_cal(z, b, a, ext_bit);
+				else 
+					sum = sum_cal(z, b, a, NULL);
 			}
-			break;
-		case 2:
-			sum = LOA(a.parts.mantissa, b.parts.mantissa);
-			break;
-		case 3:
-			sum = ETA1(a.parts.mantissa, b.parts.mantissa);
-			break;
 		}
+		else {
+			sum = a.parts.mantissa + b.parts.mantissa;
+			z.parts.sign = a.parts.sign;
+		}
+		break;
+	case 2:
+		sum = LOA(a.parts.mantissa, b.parts.mantissa);
+		break;
+	case 3:
+		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
+		break;
 	}
 	unsigned int z_mantissa;
 
@@ -330,7 +311,6 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	else {
 		if (subEx == 0) {
 			if (a.parts.sign == b.parts.sign) {
-				printf("3\n");
 				if (z.parts.exponent != 0) {
 					ext_bit[0] = ext_bit[1]; // round bit
 					ext_bit[1] = ext_bit[2]; // round bit
@@ -409,7 +389,7 @@ int main(void) {
 	float_cast ans, loa, eta1;
 	float_cast orgAns;
 	//FILE* input = fopen("input(subEx=0).txt", "r");
-	//FILE* output = fopen("ErrorOutput(subEx=0).txt", "w");
+	FILE* output = fopen("ErrorOutput.txt", "w");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\t\tLOA\t\tETA1\n");
 	printf("**********************************************************************\n");
@@ -418,45 +398,45 @@ int main(void) {
 	//B = makeFP();
 	//A, B 랜덤 지정
 
-	while (nnn <= 100) {
+	while (nnn <= 1000) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
-		//A.f = 6.32156713e-29;
-		//B.f = 0.389596671;
+	/*A.f = -1.912118e-36;
+	B.f = -7.781059e-39;*/
 
-		//A, B 직접 지정
-		A = makeFP();
-		B = makeFP();
-		orgAns.f = A.f + B.f;
-		ans = FPAdder(A, B, 1);
-		//loa = FPAdder(A, B, 2);
-		//eta1 = FPAdder(A, B, 3);
+	//A, B 직접 지정
+	A = makeFP();
+	B = makeFP();
+	orgAns.f = A.f + B.f;
+	ans = FPAdder(A, B, 1);
+	//loa = FPAdder(A, B, 2);
+	//eta1 = FPAdder(A, B, 3);
 
 
-		if (checknum == 1) {
-			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-			//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-			checknum = 0;
-			if (ans.f != orgAns.f) {
-				printf("Error!\n");
-				//fprintf(output,"%e %e\n",A.f, B.f);
-			}
-			printf("\n\n******************************\n");
+	if (checknum == 1) {
+		printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+		//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+		checknum = 0;
+		if (ans.f != orgAns.f) {
+			printf("Error!\n");
+			fprintf(output,"%e %e\n",A.f, B.f);
 		}
-		else {
-			printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-			//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-			if (ans.f != orgAns.f) {
-				printf("Error!\n");
-				//fprintf(output,"%e %e\n",A.f, B.f);
-			}
-			printf("\n\n******************************\n");
+		printf("\n\n******************************\n");
+	}
+	else {
+		printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+		//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+		if (ans.f != orgAns.f) {
+			printf("Error!\n");
+			fprintf(output,"%e %e\n",A.f, B.f);
 		}
-
-		nnn++;
+		printf("\n\n******************************\n");
 	}
 
-	//fclose(output);
+	nnn++;
+	}
+
+	fclose(output);
 	//fclose(input);
 }
 /*
