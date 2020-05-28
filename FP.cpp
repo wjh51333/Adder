@@ -273,6 +273,8 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		else {
 			sum = a.parts.mantissa + b.parts.mantissa;
 			z.parts.sign = a.parts.sign;
+			if(subEx == 0)
+				z.parts.exponent = a.parts.exponent;
 		}
 		break;
 	case 2:
@@ -403,8 +405,8 @@ int main(void) {
 	//while (nnn <= 10000) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
-		A.f = -2.19334587e-21;
-		B.f = 3.02447080e-21;
+		A.f = 8.666837e+14;
+		B.f = 6.755243e+14;
 
 		//A, B 직접 지정
 		/*A = makeFP();
@@ -415,10 +417,9 @@ int main(void) {
 		//eta1 = FPAdder(A, B, 3);
 
 
-		if (checknum == 1) {
+		if (checknum == 0) {
 			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
 			//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-			checknum = 0;
 			if (ans.f != orgAns.f) {
 				printf("Error!\n");
 				//fprintf(output, "%e %e\n", A.f, B.f);
@@ -426,6 +427,7 @@ int main(void) {
 			printf("\n\n******************************\n");
 		}
 		else {
+			checknum = 0;
 			printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
 			//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
 			if (ans.f != orgAns.f) {
