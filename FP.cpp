@@ -200,6 +200,12 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 		}
 
 		sum &= 0x7FFFFF;
+		int tempSum = z.parts.exponent - cnt;
+		if (tempSum < 0) {
+			z.parts.exponent = 0;
+			sum >>= (abs(tempSum)+1);
+			sum |= (0x400000>>abs(tempSum));
+		}else
 		z.parts.exponent -= cnt;
 	}
 	else {
@@ -421,11 +427,11 @@ int main(void) {
 	//B = makeFP();
 	//A, B 랜덤 지정
 
-	while (nnn <= 50000) {
+	while (nnn <= 100000) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
-	//A.f = -3.176164e+38;
-	//B.f = -7.168459e+37;
+	//A.f = 2.346711e-38;
+	//B.f = -2.452827e-38;
 
 	//A, B 직접 지정
 	A = makeFP();
