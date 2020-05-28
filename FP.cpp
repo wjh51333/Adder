@@ -106,10 +106,13 @@ void extbit_cal(float_cast x, int subEx, int *e)
 		subEx--;
 
 	if (subEx >= 25) {
+		if (x.parts.exponent != 0) {
+			m |= 0x800000; temp |= 0x800000;
+		}
 		e[0] = (temp & m) ? 1 : 0; // sticky bit
 
 		// round bit
-		if (subEx == 25)
+		if (subEx == 25 && x.parts.exponent != 0)
 			e[1] = 1;
 		else
 			e[1] = 0;
@@ -117,9 +120,14 @@ void extbit_cal(float_cast x, int subEx, int *e)
 		e[2] = 0; // guard bit -> 0
 	}
 	else if (subEx == 24) {
-		e[0] = (temp & m) ? 1 : 0; // sticky bit
-		e[1] = (temp & (1 << 23)) ? 1 : 0; // round bit
-		e[2] = 1; // guard bit
+		e[0] = (temp & (m >> 1)) ? 1 : 0; // sticky bit
+		e[1] = (temp & (1 << 22)) ? 1 : 0; // round bit
+		
+		// guard bit
+		if (x.parts.exponent != 0)
+			e[2] = 1;
+		else
+			e[2] = 0;
 	}
 	else {
 		m >>= (23 - subEx);
