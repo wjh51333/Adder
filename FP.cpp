@@ -272,38 +272,28 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		}
 	}
 
-	switch (case_num)
-	{
-	case 1:
-		if (a.parts.sign != b.parts.sign) {
-			if (a.parts.mantissa > b.parts.mantissa) {
-				if (subEx != 0)
-					sum = sum_cal(z, a, b, ext_bit);
-				else
-					sum = sum_cal(z, a, b, NULL);
-			}
-			else {
-				if (subEx != 0)
-					sum = sum_cal(z, b, a, ext_bit);
-				else
-					sum = sum_cal(z, b, a, NULL);
-			}
+	if (a.parts.sign != b.parts.sign) {
+		if (a.parts.mantissa > b.parts.mantissa) {
+			if (subEx != 0)
+				sum = sum_cal(z, a, b, ext_bit);
+			else
+				sum = sum_cal(z, a, b, NULL);
 		}
 		else {
-			sum = a.parts.mantissa + b.parts.mantissa;
-			z.parts.sign = a.parts.sign;
-
-			if (subEx == 0)
-				z.parts.exponent = a.parts.exponent;
+			if (subEx != 0)
+				sum = sum_cal(z, b, a, ext_bit);
+			else
+				sum = sum_cal(z, b, a, NULL);
 		}
-		break;
-	case 2:
-		sum = LOA(a.parts.mantissa, b.parts.mantissa);
-		break;
-	case 3:
-		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
-		break;
 	}
+	else {
+		sum = a.parts.mantissa + b.parts.mantissa;
+		z.parts.sign = a.parts.sign;
+
+		if (subEx == 0)
+			z.parts.exponent = a.parts.exponent;
+	}
+			
 	unsigned int z_mantissa;
 
 	//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
