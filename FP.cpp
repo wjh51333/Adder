@@ -55,7 +55,6 @@ float_cast makeFP() {
 	num.parts.sign = RandomSign(generator);
 	return num;
 }
-
 unsigned int LOA(unsigned int a, unsigned int b)
 {
 	unsigned int m, n, sum;
@@ -203,10 +202,11 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 		int tempSum = z.parts.exponent - cnt;
 		if (tempSum <= 0) {
 			z.parts.exponent = 0;
-			sum >>= (abs(tempSum)+1);
-			sum |= (0x400000>>abs(tempSum));
-		}else
-		z.parts.exponent -= cnt;
+			sum >>= (abs(tempSum) + 1);
+			sum |= (0x400000 >> abs(tempSum));
+		}
+		else
+			z.parts.exponent -= cnt;
 	}
 	else {
 		sum = (x.parts.mantissa << 3) - ((y.parts.mantissa << 3) + esum);
@@ -220,7 +220,7 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 
 	return sum;
 }
-float_cast FPAdder(float_cast a, float_cast b, int case_num) {
+float_cast FPAdder(float_cast a, float_cast b) {
 
 
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
@@ -293,7 +293,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 		if (subEx == 0)
 			z.parts.exponent = a.parts.exponent;
 	}
-			
+
 	unsigned int z_mantissa;
 
 	//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
@@ -364,7 +364,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	//overflow!
 	if (z.parts.mantissa == 0 && (z.parts.exponent >= 0xFF)) {
 		//printf("\noverflow!\n");
-		z.parts.mantissa = 1<<23;
+		z.parts.mantissa = 1 << 23;
 		z.parts.exponent = 255;
 		return z;
 		//z.parts.mantissa <<= 1;
@@ -376,7 +376,7 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	//underflow!
 	else if (z.parts.exponent >= 0xFF) {
 		//printf("\nunderflow!\n");
-		z.parts.mantissa = 1<<23;
+		z.parts.mantissa = 1 << 23;
 		z.parts.exponent = 255;
 		return z;
 		//ext_bit[2] = z.parts.mantissa & 1;
@@ -403,6 +403,47 @@ float_cast FPAdder(float_cast a, float_cast b, int case_num) {
 	return z;
 }
 
+float_cast AppAdder(float_cast a, float_cast b, int caseNum) {
+
+	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
+	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
+
+	//입력값이 INF일 수 가있나?
+	if (a.parts.exponent == 0xFF && a.parts.sign == 0)  //a is inf 
+	{
+		not_real_number
+	}
+	else if (a.parts.exponent == 0xFF && a.parts.sign == 1)//a is -inf 
+	{
+		not_real_number
+	}
+
+	if (b.parts.exponent == 0xFF && b.parts.sign == 0)  //b is inf 
+	{
+		not_real_number
+	}
+	else if (b.parts.exponent == 0xFF && b.parts.sign == 1)//b is -inf 
+	{
+		not_real_number
+	}
+
+	float_cast z; //return 값
+	z.parts.sign = 0;
+	unsigned int sum = 0;
+	switch (caseNum) {
+	case 1: //LOA
+		sum = LOA(a.parts.mantissa, b.parts.mantissa);
+	case 2: //ETA1
+		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
+	}
+	unsigned int aMantissa_extra;
+	unsigned int bMantissa_extra;
+	aMantissa_extra = a.parts.mantissa - a.parts.mantissa & mask;
+	bMantissa_extra = b.parts.mantissa - b.parts.mantissa & mask;
+	z.parts.mantissa = aMantissa_extra & bMantissa_extra + sum;
+	
+	return z;
+}
 int main(void) {
 	float_cast A, B;
 	float_cast ans, loa, eta1;
@@ -424,35 +465,35 @@ int main(void) {
 	//B.f = 8.629122e-39;
 
 	//A, B 직접 지정
-	A = makeFP();
-	B = makeFP();
-	orgAns.f = A.f + B.f;
-	ans = FPAdder(A, B, 1);
-	//loa = FPAdder(A, B, 2);
-	//eta1 = FPAdder(A, B, 3);
+		A = makeFP();
+		B = makeFP();
+		orgAns.f = A.f + B.f;
+		ans = FPAdder(A, B);
+		loa = AppAdder(A, B, 1);
+		eta1 = AppAdder(A, B, 2);
 
 
-	if (checknum == 0) {
-		printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-		//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-		if (ans.f != orgAns.f) {
-			printf("Error!\n");
-			fprintf(output, "%e %e\n", A.f, B.f);
+		if (checknum == 0) {
+			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			if (ans.f != orgAns.f) {
+				printf("Error!\n");
+				fprintf(output, "%e %e\n", A.f, B.f);
+			}
+			printf("\n\n******************************\n");
 		}
-		printf("\n\n******************************\n");
-	}
-	else {
-		checknum = 0;
-		printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-		//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-		if (ans.f != orgAns.f) {
-			printf("Error!\n");
-			fprintf(output, "%e %e\n", A.f, B.f);
+		else {
+			checknum = 0;
+			printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
+			//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
+			if (ans.f != orgAns.f) {
+				printf("Error!\n");
+				fprintf(output, "%e %e\n", A.f, B.f);
+			}
+			printf("\n\n******************************\n");
 		}
-		printf("\n\n******************************\n");
-	}
 
-	nnn++;
+		nnn++;
 	}
 	fclose(output);
 	//fclose(input);
