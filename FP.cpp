@@ -363,17 +363,18 @@ float_cast FPAdder(float_cast a, float_cast b) {
 	return z;
 }
 
-unsigned int LOA(unsigned int a, unsigned int b, int *carry)
+unsigned int LOA(unsigned int a, unsigned int b)
 {
 	unsigned int m, n, sum;
+	int carry;
 
 	m = a & mask;
 	n = b & mask;
 
 	sum = m | n;
-	*carry = (m >> bitnum - 1) & (n >> bitnum - 1);
+	carry = (m >> bitnum - 1) & (n >> bitnum - 1);
 
-	sum += (a - m) + (b - n) + (*carry << bitnum);
+	sum += (a - m) + (b - n) + (carry << bitnum);
 
 	return sum;
 }
@@ -430,7 +431,6 @@ float_cast AppAdder(float_cast a, float_cast b, int caseNum) {
 	float_cast z; //return 값
 	z.parts.sign = 0;
 	unsigned int sum = 0;
-	int carry = 0;
 
 	int subEx = a.parts.exponent - b.parts.exponent;
 	if (subEx != 0) {//exponents equal
@@ -449,23 +449,17 @@ float_cast AppAdder(float_cast a, float_cast b, int caseNum) {
 
 	switch (caseNum) {
 	case 1: //LOA
-		sum = LOA(a.parts.mantissa, b.parts.mantissa, &carry);
+		sum = LOA(a.parts.mantissa, b.parts.mantissa);
 		break;
 	case 2: //ETA1
 		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
 		break;
 	}
 
-	unsigned int pre_a = a.parts.mantissa - (a.parts.mantissa & mask);
-	unsigned int pre_b = b.parts.mantissa - (b.parts.mantissa & mask);
-	carry <<= bitnum;
-
-	sum = pre_a + pre_b + carry + sum;
-
 
 	//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 	//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
-	/*if (sum > 0x7FFFFF) {
+	if (sum > 0x7FFFFF) {
 		if (subEx == 0) {
 			sum >>= 1;
 			z.parts.exponent++;
