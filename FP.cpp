@@ -55,6 +55,46 @@ float_cast makeFP() {
 	num.parts.sign = RandomSign(generator);
 	return num;
 }
+unsigned int LOA(unsigned int a, unsigned int b)
+{
+	unsigned int m, n, sum;
+	int carry;
+
+	m = a & mask;
+	n = b & mask;
+
+	sum = m | n;
+	carry = (m >> bitnum - 1) & (n >> bitnum - 1);
+
+	sum += (a - m) + (b - n) + (carry << bitnum);
+
+	return sum;
+}
+
+unsigned int ETA1(unsigned int a, unsigned int b)
+{
+	unsigned int M, N, m, n, inaccuratePart = 0, r, sum = 0;
+	int carry, imask = 0x800;
+
+	M = a & mask;
+	N = b & mask;
+
+	while (1) {
+		m = a & imask;
+		n = b & imask;
+		r = m ^ n;
+		inaccuratePart += r;
+		if (m == imask && n == imask) {
+			inaccuratePart += imask - 1;
+			break;
+		}
+		imask /= 2;
+	}
+
+	sum = (a - M) + (b - N) + inaccuratePart;
+
+	return sum;
+}
 
 void extbit_cal(float_cast x, int subEx, int *e)
 {
@@ -180,8 +220,8 @@ unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e)
 
 	return sum;
 }
-
 float_cast FPAdder(float_cast a, float_cast b) {
+
 
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
@@ -363,47 +403,6 @@ float_cast FPAdder(float_cast a, float_cast b) {
 	return z;
 }
 
-unsigned int LOA(unsigned int a, unsigned int b)
-{
-	unsigned int m, n, sum;
-	int carry;
-
-	m = a & mask;
-	n = b & mask;
-
-	sum = m | n;
-	carry = (m >> bitnum - 1) & (n >> bitnum - 1);
-
-	sum += (a - m) + (b - n) + (carry << bitnum);
-
-	return sum;
-}
-
-unsigned int ETA1(unsigned int a, unsigned int b)
-{
-	unsigned int M, N, m, n, inaccuratePart = 0, r, sum = 0;
-	int carry, imask = 0x800;
-
-	M = a & mask;
-	N = b & mask;
-
-	while (1) {
-		m = a & imask;
-		n = b & imask;
-		r = m ^ n;
-		inaccuratePart += r;
-		if (m == imask && n == imask) {
-			inaccuratePart += imask - 1;
-			break;
-		}
-		imask /= 2;
-	}
-
-	sum = (a - M) + (b - N) + inaccuratePart;
-
-	return sum;
-}
-
 float_cast AppAdder(float_cast a, float_cast b, int caseNum) {
 
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
@@ -431,19 +430,35 @@ float_cast AppAdder(float_cast a, float_cast b, int caseNum) {
 	float_cast z; //return 값
 	z.parts.sign = 0;
 	unsigned int sum = 0;
-	
+
+	int subEx = a.parts.exponent - b.parts.exponent;
+	if (subEx != 0) {//exponents equal
+		checknum = 1;
+		if (subEx > 0) {// a's exponent > b's exponent  => shift mantissa right
+							//b.parts.exponent = a.parts.exponent;
+			mantissa_cal(z, a, b, subEx);
+			z.parts.sign = a.parts.sign;
+		}
+		else {// a's exponent < b's exponent => shift mantissa right
+			 //a.parts.exponent = b.parts.exponent;
+			mantissa_cal(z, b, a, abs(subEx));
+			z.parts.sign = b.parts.sign;
+		}
+	}
+
 	switch (caseNum) {
 	case 1: //LOA
 		sum = LOA(a.parts.mantissa, b.parts.mantissa);
+		break;
 	case 2: //ETA1
 		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
+		break;
 	}
-	
+
 	unsigned int aMantissa_extra;
 	unsigned int bMantissa_extra;
-	
-	aMantissa_extra = a.parts.mantissa - a.parts.mantissa & mask;
-	bMantissa_extra = b.parts.mantissa - b.parts.mantissa & mask;
+	aMantissa_extra = a.parts.mantissa - (a.parts.mantissa & mask);
+	bMantissa_extra = b.parts.mantissa - (b.parts.mantissa & mask);
 	z.parts.mantissa = aMantissa_extra & bMantissa_extra + sum;
 	
 	return z;
@@ -453,7 +468,7 @@ int main(void) {
 	float_cast ans, loa, eta1;
 	float_cast orgAns;
 	//FILE* input = fopen("input(subEx=0).txt", "r");
-	FILE* output = fopen("Errorlist.txt", "a");
+	//FILE* output = fopen("Errorlist.txt", "a");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t=\torgANS\t\tmyANS\t\tLOA\t\tETA1\n");
 	printf("**********************************************************************\n");
@@ -462,7 +477,7 @@ int main(void) {
 	//B = makeFP();
 	//A, B 랜덤 지정
 
-	while (nnn <= 1) {
+	while (nnn <= 20) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
 	//A.f = -1.459654e-38;
@@ -472,35 +487,24 @@ int main(void) {
 		A = makeFP();
 		B = makeFP();
 		orgAns.f = A.f + B.f;
-		
 		ans = FPAdder(A, B);
 		loa = AppAdder(A, B, 1);
 		eta1 = AppAdder(A, B, 2);
 
 
 		if (checknum == 0) {
-			printf("%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-			//printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-			if (ans.f != orgAns.f) {
-				printf("Error!\n");
-				fprintf(output, "%e %e\n", A.f, B.f);
-			}
+			printf("%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
 			printf("\n\n******************************\n");
 		}
 		else {
 			checknum = 0;
-			printf("++%d: %e    +    %e    =    %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f);
-			//printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
-			if (ans.f != orgAns.f) {
-				printf("Error!\n");
-				fprintf(output, "%e %e\n", A.f, B.f);
-			}
+			printf("++%d: %e    +    %e    =    %e,   %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, ans.f, loa.f, eta1.f);
 			printf("\n\n******************************\n");
 		}
 
 		nnn++;
 	}
-	fclose(output);
+	//fclose(output);
 	//fclose(input);
 }
 /*
