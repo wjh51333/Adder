@@ -9,7 +9,6 @@
 
 #define mask 0xFFF
 #define bitnum 12
-#define emask 0x7FFFFF
 
 /* endianness testing */
 const int EndianTest = 0x04030201;
@@ -54,6 +53,23 @@ float_cast makeFP() {
 	num.parts.mantissa = RandomMantissa(generator);
 	num.parts.sign = RandomSign(generator);
 	return num;
+}
+
+int exp_cal(unsigned int x, unsigned int y)
+{
+	int expnum = 4, exmask = 0xF0;
+	int sub = 0;
+
+	if (x > y)
+		sub = (x & exmask) - (y & exmask);
+	else
+		sub = (y & exmask) - (x & exmask);
+
+	exmask >>= expnum;
+
+	sub += (x & exmask) ^ (y & exmask);
+
+	return sub;
 }
 
 void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
@@ -141,17 +157,17 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 	z.parts.sign = 0;
 	unsigned int sum = 0;
 
-	int subEx = a.parts.exponent - b.parts.exponent;
+	int subEx =  exp_cal(a.parts.exponent, b.parts.exponent);
 	if (subEx != 0) {//exponents equal
 		checknum = 1;
-		if (subEx > 0) {// a's exponent > b's exponent  => shift mantissa right
+		if (a.parts.exponent > b.parts.exponent) {// a's exponent > b's exponent  => shift mantissa right
 							//b.parts.exponent = a.parts.exponent;
 			mantissa_cal(z, a, b, subEx);
 			z.parts.sign = a.parts.sign;
 		}
 		else {// a's exponent < b's exponent => shift mantissa right
 			 //a.parts.exponent = b.parts.exponent;
-			mantissa_cal(z, b, a, abs(subEx));
+			mantissa_cal(z, b, a, subEx);
 			z.parts.sign = b.parts.sign;
 		}
 	}
