@@ -15,31 +15,31 @@ int m_additionSJ(int a, int b, int acc_len) {
 	int accurate_part, inaccurate_part = 0;
 	int carry_in, inaccur_carry = 0;
 
-	//a,b¸ğµÎ inaccurate ±æÀÌ¸¸Å­ ¿À¸¥ÂÊÀ¸·Î shift, ºñÆ®¸¶½ºÅ©´Â accurate ±æÀÌ¸¸Å­
-	//(bitmask<<accurate_len)-1)ÀÇ¹Ì ~ 1<<3 = 1000 , 1000(2)-1 = 111(2)
+	//a,bëª¨ë‘ inaccurate ê¸¸ì´ë§Œí¼ ì˜¤ë¥¸ìª½ìœ¼ë¡œ shift, ë¹„íŠ¸ë§ˆìŠ¤í¬ëŠ” accurate ê¸¸ì´ë§Œí¼
+	//(bitmask<<accurate_len)-1)ì˜ë¯¸ ~ 1<<3 = 1000 , 1000(2)-1 = 111(2)
 	accurate_part = ((a >> inacc_len) & ((bitmask << acc_len) - 1)) + ((b >> inacc_len) & ((bitmask << acc_len) - 1));
 
-	//low part °è»ê
-	//low partÀÇ ÃÖ»óÀ§ 2°³ ºñÆ® OR ¿¬»ê
-	//1<<2 = 100 100-1 = 11¿¡¼­ 11<<inacc_len-2 ~ 11000000
-	//temp¿¡ low part ÃÖ»óÀ§ºñÆ®ÀúÀå
+	//low part ê³„ì‚°
+	//low partì˜ ìµœìƒìœ„ 2ê°œ ë¹„íŠ¸ OR ì—°ì‚°
+	//1<<2 = 100 100-1 = 11ì—ì„œ 11<<inacc_len-2 ~ 11000000
+	//tempì— low part ìµœìƒìœ„ë¹„íŠ¸ì €ì¥
 	inaccurate_part = (a | b) & ((bitmask << inacc_len) - 1);
 	temp = ((a | b) >> (inacc_len - 1)) & bitmask;
 
-	//carry °è»ê 
+	//carry ê³„ì‚° 
 	carry_in = ((a >> inacc_len - 1) & bitmask) & ((b >> inacc_len - 1) & bitmask);
 	accurate_part += carry_in;
 
-	//´Ù½Ã ¿ø·¡ÀÚ¸®·Î shift
+	//ë‹¤ì‹œ ì›ë˜ìë¦¬ë¡œ shift
 	accurate_part = accurate_part << inacc_len;
 
-	//±Ùµ¥ ¿ì¸®´Â ÇÑ¹ø ´õ ¿¬»êÀ» ÇÏ´Âµ¥, carry¸¦ ÀÌ¿ëÇÒ°Å¾ß ¹İÀü½ÃÄÑ¼­ AND¿¬»ê
-	//±Ùµ¥ ÀÌ °æ¿ì°¡ (carry_in)ÀÌ¶û temp°¡ 1ÀÏ¶§¸¸ ¿ø·¡ °ªÀÌ¶û ´Ş¶óÁü.
+	//ê·¼ë° ìš°ë¦¬ëŠ” í•œë²ˆ ë” ì—°ì‚°ì„ í•˜ëŠ”ë°, carryë¥¼ ì´ìš©í• ê±°ì•¼ ë°˜ì „ì‹œì¼œì„œ ANDì—°ì‚°
+	//ê·¼ë° ì´ ê²½ìš°ê°€ (carry_in)ì´ë‘ tempê°€ 1ì¼ë•Œë§Œ ì›ë˜ ê°’ì´ë‘ ë‹¬ë¼ì§.
 	if (carry_in & temp == 1) {
 		inaccurate_part = inaccurate_part & (~(bitmask << (inacc_len - 1)));
 	}
 
-	//ÀüÃ¼ ÇÕ °è»ê
+	//ì „ì²´ í•© ê³„ì‚°
 	sum = accurate_part + inaccurate_part;
 
 	//printf("<<newadder4 sum>>\n"); 
@@ -62,10 +62,10 @@ int m_additionUB(int a, int b, int accLen)
 	//inaccurate part
 	for (int i = accLen - 1; i >= 0; i--)
 	{
-		int aa = a & (1 << i); //1ÀÎÁö °Ë»ç
-		int bb = b & (1 << i); //1ÀÎÁö °Ë»ç
+		int aa = a & (1 << i); //1ì¸ì§€ ê²€ì‚¬
+		int bb = b & (1 << i); //1ì¸ì§€ ê²€ì‚¬
 
-		if (i == accLen - 1) // carry ±¸ÇÏ±â
+		if (i == accLen - 1) // carry êµ¬í•˜ê¸°
 		{
 			if (aa && bb) // and
 			{
@@ -77,8 +77,8 @@ int m_additionUB(int a, int b, int accLen)
 				resultNOR |= 1 << i;
 			}
 
-			int cA = carryAND1 & (1 << (i + 1)); //1ÀÎÁö °Ë»ç
-			int rN = resultNOR & (1 << i); //1ÀÎÁö °Ë»ç
+			int cA = carryAND1 & (1 << (i + 1)); //1ì¸ì§€ ê²€ì‚¬
+			int rN = resultNOR & (1 << i); //1ì¸ì§€ ê²€ì‚¬
 
 			if (!(cA || rN))
 			{
@@ -91,7 +91,7 @@ int m_additionUB(int a, int b, int accLen)
 			{
 				if (aa && bb)
 				{
-					carryAND2 |= 1 << (i + 1); //carry2 ±¸ÇÏ±â
+					carryAND2 |= 1 << (i + 1); //carry2 êµ¬í•˜ê¸°
 				}
 
 				mask |= 1 << i;
@@ -229,35 +229,6 @@ int m_additionSETTA(int a, int b, int accLen)
 	return	(accuratePart | inaccuratePart) & BITMASK(c_TADD_BW);
 }
 
-int m_additionSETA(int a, int b, int accLen)
-{
-	const int c_accLen = accLen;
-	const int c_inaccLen = c_TADD_BW - c_accLen;
-
-	int	accuratePart = 0;
-	int	inaccuratePart = 0;
-	int carry = 0;
-
-	//carry = ((a >> (c_inaccLen - 1)) &
-	//	(b >> (c_inaccLen - 1))) & BITMASK(1);
-	//	carry = GETBIT(a, 7);
-	//	carry = 0;
-	accuratePart = (((a >> c_inaccLen) & BITMASK(c_accLen)) +
-		((b >> c_inaccLen) & BITMASK(c_accLen)) + carry); // &BITMASK(c_accLen);
-
-	accuratePart <<= c_inaccLen;
-
-	inaccuratePart = (a | b) & BITMASK(c_inaccLen);
-
-	int bitmask = 0;
-	int	i = 7;
-	if ((a & 1 << i) && (b & 1 << i))
-	{
-		inaccuratePart |= BITMASK(i + 1);
-	}
-	return	(accuratePart | inaccuratePart) & BITMASK(c_TADD_BW);
-}
-
 int m_addition(int a, int b, int l)
 {
 	//return	m_additionSJ(a, b, l);
@@ -266,7 +237,6 @@ int m_addition(int a, int b, int l)
 	//return	m_additionETA1(a, b, l);
 	//return	m_additionLOA(a, b, l);
 	//return	m_additionSETTA(a, b, l);
-	//return	m_additionSETA(a, b, l);
 }
 
 int main()
