@@ -3,11 +3,11 @@
 
 #include <iostream>
 #include <random>
-#include "SimplifiedETA.h"
+#include "error_cal.h"
 
 using namespace std;
 
-int SJ(int a, int b, int acc_len) {
+int m_additionSJ(int a, int b, int acc_len) {
 	int bitmask = 1, temp = 0;
 	int sum = 0;
 	//int acc_len = 8;
@@ -51,7 +51,7 @@ int SJ(int a, int b, int acc_len) {
 	return sum & ((1 << 16) - 1);
 }
 
-int UB(int a, int b, int accLen)
+int m_additionUB(int a, int b, int accLen)
 {
 	int mask = 0;
 	int carryAND1 = 0;
@@ -134,8 +134,11 @@ int m_additionJWETA(int a, int b, int accLen)
 		((b >> c_inaccLen) & BITMASK(c_accLen)) + carry) & BITMASK(c_accLen);
 	accuratePart <<= c_inaccLen;
 
-	inaccuratePart = (a ^ b) & BITMASK(c_inaccLen);
+	inaccuratePart = (a | b) & BITMASK(c_inaccLen);
 
+	inaccuratePart |= (a ^ b) & BITMASK(c_inaccLen / 2);
+
+	/*
 	if ( !( (a & (1 << (c_inaccLen - 2))) & (b & (1 << (c_inaccLen - 2))) ) )
 	{
 		inaccuratePart &= ~(1 << (c_inaccLen - 2));
@@ -146,7 +149,8 @@ int m_additionJWETA(int a, int b, int accLen)
 	{
 		inaccuratePart |= BITMASK(c_inaccLen - 2);
 	}
-	else inaccuratePart &= ((inaccuratePart & (1 << (c_inaccLen-1))) | (inaccuratePart & (1 << (c_inaccLen - 2))));
+	//else inaccuratePart &= (1 << (c_inaccLen-1)| 1 << (c_inaccLen-2));
+	*/
 
 	return	(accuratePart | inaccuratePart) & BITMASK(c_TADD_BW);
 }
@@ -197,14 +201,72 @@ int m_additionLOA(int a, int b, int accLen)
 	return	(accuratePart | inaccuratePart) & BITMASK(c_TADD_BW);
 }
 
+int m_additionSETTA(int a, int b, int accLen)
+{
+	const int c_accLen = accLen;
+	const int c_inaccLen = c_TADD_BW - c_accLen;
+
+	int	accuratePart = 0;
+	int	inaccuratePart = 0;
+	int carry = 0;
+
+	accuratePart = (((a >> c_inaccLen) & BITMASK(c_accLen)) +
+		((b >> c_inaccLen) & BITMASK(c_accLen)) + carry); // &BITMASK(c_accLen);
+
+	accuratePart <<= c_inaccLen;
+
+	inaccuratePart = (a | b) & BITMASK(c_inaccLen);
+
+	int i = 7;
+
+	inaccuratePart &= (BITMASK(c_inaccLen / 2) << (c_inaccLen / 2 - 1));
+
+	if ((a & 1 << i) && (b & 1 << i))
+	{
+		inaccuratePart |= (BITMASK((i + 1) / 2) << ((i + 1) / 2));
+	}
+
+	return	(accuratePart | inaccuratePart) & BITMASK(c_TADD_BW);
+}
+
+int m_additionSETA(int a, int b, int accLen)
+{
+	const int c_accLen = accLen;
+	const int c_inaccLen = c_TADD_BW - c_accLen;
+
+	int	accuratePart = 0;
+	int	inaccuratePart = 0;
+	int carry = 0;
+
+	//carry = ((a >> (c_inaccLen - 1)) &
+	//	(b >> (c_inaccLen - 1))) & BITMASK(1);
+	//	carry = GETBIT(a, 7);
+	//	carry = 0;
+	accuratePart = (((a >> c_inaccLen) & BITMASK(c_accLen)) +
+		((b >> c_inaccLen) & BITMASK(c_accLen)) + carry); // &BITMASK(c_accLen);
+
+	accuratePart <<= c_inaccLen;
+
+	inaccuratePart = (a | b) & BITMASK(c_inaccLen);
+
+	int bitmask = 0;
+	int	i = 7;
+	if ((a & 1 << i) && (b & 1 << i))
+	{
+		inaccuratePart |= BITMASK(i + 1);
+	}
+	return	(accuratePart | inaccuratePart) & BITMASK(c_TADD_BW);
+}
+
 int m_addition(int a, int b, int l)
 {
 	//return	m_additionSJ(a, b, l);
 	//return	m_additionUB(a, b, l);
-	//return	m_additionJWETA(a, b, l);
+	return	m_additionJWETA(a, b, l);
 	//return	m_additionETA1(a, b, l);
 	//return	m_additionLOA(a, b, l);
-
+	//return	m_additionSETTA(a, b, l);
+	//return	m_additionSETA(a, b, l);
 }
 
 int main()
