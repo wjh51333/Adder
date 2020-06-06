@@ -9,6 +9,7 @@
 
 #define mask 0xFFF
 #define bitnum 12
+#define emask 0x7FFFFF
 
 /* endianness testing */
 const int EndianTest = 0x04030201;
@@ -129,6 +130,51 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 	return sum;
 }
 
+void extbit_cal(float_cast x, int subEx, int *e)
+{
+	unsigned int m = emask;
+	unsigned int temp = x.parts.mantissa;
+
+	if (x.parts.exponent == 0)
+		subEx--;
+
+	if (subEx >= 25) {
+		if (x.parts.exponent != 0) {
+			m |= 0x800000; temp |= 0x800000;
+		}
+
+		e[0] = (temp & m) ? 1 : 0; // sticky bit
+
+		// round bit
+		if (subEx == 25 && x.parts.exponent != 0)
+			e[1] = 1;
+		else
+			e[1] = 0;
+
+		e[2] = 0; // guard bit -> 0
+	}
+	else if (subEx == 24) {
+		e[0] = (temp & (m >> 1)) ? 1 : 0; // sticky bit
+		e[1] = (temp & (1 << 22)) ? 1 : 0; // round bit
+
+		// guard bit
+		if (x.parts.exponent != 0)
+			e[2] = 1;
+		else
+			e[2] = 0;
+
+	}
+	else {
+		m >>= (23 - subEx);
+		temp &= m;
+		if (subEx >= 2) {
+			e[0] = (temp & (m >> 2)) ? 1 : 0; // sticky bit
+			e[1] = (temp & (1 << (subEx - 2))) ? 1 : 0; // round bit
+		}
+		e[2] = (temp & (1 << (subEx - 1))) ? 1 : 0; // guard bit
+	}
+}
+
 float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
@@ -154,23 +200,28 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 	}
 
 	float_cast z; //return 값
-	z.parts.sign = 0;
+ 	z.parts.sign = 0;
 	unsigned int sum = 0;
-
-	int subEx =  a.parts.exponent - b.parts.exponent;
+	int ext_bit[3] = { 0, }; // guard, round, sticky bit
+	int subEx_tmp = a.parts.exponent - b.parts.exponent;
+	int subEx = abs(subEx_tmp);
 	if (subEx != 0) {//exponents equal
 		checknum = 1;
 		if (a.parts.exponent > b.parts.exponent) {// a's exponent > b's exponent  => shift mantissa right
 							//b.parts.exponent = a.parts.exponent;
+			extbit_cal(b, subEx, ext_bit);
 			mantissa_cal(z, a, b, subEx);
 			z.parts.sign = a.parts.sign;
 		}
 		else {// a's exponent < b's exponent => shift mantissa right
 			 //a.parts.exponent = b.parts.exponent;
+			extbit_cal(a, abs(subEx), ext_bit);
 			mantissa_cal(z, b, a, subEx);
 			z.parts.sign = b.parts.sign;
 		}
 	}
+	else
+		z.parts.exponent = a.parts.exponent;
 
 	switch (caseNum) {
 	case 1: //LOA
@@ -180,21 +231,69 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
 		break;
 	}
-
+	
 
 	//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 	//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
 	if (sum > 0x7FFFFF) {
 		if (subEx == 0) {
-			sum >>= 1;
+
+			if (z.parts.exponent != 0) {
+				z.parts.mantissa = sum >> 1;
+				ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
+				ext_bit[1] = ext_bit[2]; // round bit
+				ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
+			}
+			else {
+				//z.parts.mantissa = sum & 0x3FFFFF;
+				z.parts.mantissa = sum;
+			}
 			z.parts.exponent++;
 		}
 		else {
-			sum = (sum >> 1) & 0x3FFFFF;
+			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
+			ext_bit[1] = ext_bit[2]; // round bit
+			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
+
+			z.parts.mantissa = (sum >> 1) & 0x3FFFFF;
 			z.parts.exponent++;
 		}
 	}
-	z.parts.mantissa = sum;
+	else {
+		if (subEx == 0) {
+			if (a.parts.sign == b.parts.sign) {
+				if (z.parts.exponent != 0) {
+					ext_bit[0] = ext_bit[1]; // round bit
+					ext_bit[1] = ext_bit[2]; // round bit
+					ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
+					z.parts.mantissa = sum >> 1;
+					z.parts.exponent++;
+				}
+				else
+					z.parts.mantissa = sum;
+			}
+			else {
+				int cnt = 1;
+				if (z.parts.exponent != 0) {
+					for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++) {
+						if (z.parts.exponent - cnt == 0)
+							break;
+						sum <<= 1;
+					}
+					if (z.parts.exponent - cnt == 0)
+						z.parts.mantissa = sum;
+					else
+						z.parts.mantissa = (sum << 1) & 0x7FFFFF;
+					z.parts.exponent -= cnt;
+				}
+				else
+					z.parts.mantissa = sum;
+			}
+		}
+		else {
+			z.parts.mantissa = sum;
+		}
+	}
 
 
 	//overflow!
@@ -221,7 +320,16 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 		//z.parts.mantissa >>= 1;
 		//z.parts.exponent++;
 	}
+	// guard && (round bit | sticky | z_m[0])
+	if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantissa & 1))) {
+		z.parts.mantissa++;
+		if (z.parts.mantissa >= 0xffffff)
+			z.parts.exponent++;
+	}
 
+	if (z.parts.mantissa == 0) {
+		z.f = 0;
+	}
 	return z;
 }
 
@@ -229,19 +337,18 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 int main(void) {
 	float_cast A, B;
 	float_cast orgAns, loa, eta1;
-	//FILE* input = fopen("input(subEx=0).txt", "r");
-	//FILE* output = fopen("Errorlist.txt", "a");
+	//FILE* input = fopen("Errorlist.txt", "r");
+	//FILE* output = fopen("Errorlist.txt", "w");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t  =\torgANS\t\tLOA\t\tETA1\n");
 	printf("**********************************************************************\n");
 
-
-	while (nnn <= 30) {
+	while (nnn<=100) {
 		//fscanf(input, "%f %f ", &A.f, &B.f);
 
 		//A, B 직접 지정
-		//A.f = 2.845072e-34;
-		//B.f = -6.625885e-34;
+		/*A.f = 4.011746e-35;
+		B.f = 3.558128e-35;*/
 		do {
 			A = makeFP();
 			B = makeFP();
@@ -249,7 +356,6 @@ int main(void) {
 		orgAns.f = A.f + B.f;
 		loa = AXAdder(A, B, 1);
 		eta1 = AXAdder(A, B, 2);
-
 
 		if (checknum == 0) {
 			printf("%d: %e    +    %e    =    %e,   %e,   %e\n", nnn, A.f, B.f, orgAns.f, loa.f, eta1.f);
@@ -261,6 +367,8 @@ int main(void) {
 			printf("\n\n******************************\n");
 		}
 
+		//if(orgAns.parts.exponent != loa.parts.exponent)
+		//	fprintf(output, "%e\t%e\n", A.f, B.f);
 		nnn++;
 	}
 	//fclose(output);
