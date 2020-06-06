@@ -123,6 +123,8 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 			break;
 		}
 		imask /= 2;
+		if (imask == 0)
+			break;
 	}
 
 	sum = (a - M) + (b - N) + inaccuratePart;
