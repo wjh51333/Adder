@@ -157,7 +157,7 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 	z.parts.sign = 0;
 	unsigned int sum = 0;
 
-	int subEx =  exp_cal(a.parts.exponent, b.parts.exponent);
+	int subEx =  a.parts.exponent - b.parts.exponent;
 	if (subEx != 0) {//exponents equal
 		checknum = 1;
 		if (a.parts.exponent > b.parts.exponent) {// a's exponent > b's exponent  => shift mantissa right
