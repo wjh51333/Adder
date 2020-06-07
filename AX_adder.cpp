@@ -135,22 +135,43 @@ unsigned int LOA(float_cast &z, float_cast a, float_cast b)
 		sum += (a.parts.mantissa - m) + (b.parts.mantissa - n) + (carry << bitnum);
 	}
 	else {
-		if (m > n) {
-			n = complement_2(n);
-			z.parts.sign = a.parts.sign;
+		if (a.parts.mantissa > b.parts.mantissa) {
+			if (a.parts.exponent > b.parts.exponent) {
+				sum = (m - (m & mask)) - (n - (n & mask));
+				z.parts.sign = a.parts.sign;
+			}
+			else {
+				sum = ((n | 0x800000) - (n & mask)) - (m - (m & mask));
+				z.parts.sign = b.parts.sign;
+			}
 		}
 		else {
-			m = complement_2(m);
-			z.parts.sign = b.parts.sign;
+			if (a.parts.exponent > b.parts.exponent) {
+				sum = (m - (m & mask)) - (n - (n & mask));
+				z.parts.sign = a.parts.sign;
+			}
+			else {
+				sum = ((n | 0x800000) - (n & mask)) - (m - (m & mask));
+				z.parts.sign = b.parts.sign;
+			}
 		}
-		sum = (m - (m & mask)) + (n - (n & mask));
 		
 		m &= mask; n &= mask;
 		carry = (m >> bitnum - 1) & (n >> bitnum - 1);
 
 		sum += (m | n) + (carry << bitnum);
 
-		// normalize 해야됨
+		// normalize
+		if (sum > 0x7FFFFF)
+			sum &= 0x7FFFFF;
+		else {
+			int cnt;
+			for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
+				sum <<= 1;
+
+			sum = (sum << 1) & 0x7FFFFF;
+			z.parts.exponent -= cnt;
+		}
 	}
 		
 	return sum;
