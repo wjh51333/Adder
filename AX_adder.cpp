@@ -88,34 +88,86 @@ void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	}
 }
 
-
-unsigned int LOA(unsigned int a, unsigned int b)
+int complement_2(unsigned int m)
 {
-	unsigned int m, n, sum;
+	int idx = 0;
+	int arr[23] = { 0, };
+	int res = 0;
+
+	while (m > 0) {
+		if (m % 2 == 1)
+			arr[idx] = 1;
+
+		m /= 2;
+		idx++;
+	}
+
+	for (int i = 0; i < idx; i++) {
+		if (arr[i] == 1)
+			arr[i] = 0;
+		else
+			arr[i] = 1;
+	}
+
+	int num = 1;
+	for (int i = 0; i < 23; i++) {
+		res += arr[i] * num;
+		num *= 2;
+	}
+ 
+	return res + 1;
+}
+
+unsigned int LOA(float_cast &z, float_cast a, float_cast b)
+{
+	unsigned int m = a.parts.mantissa, n = b.parts.mantissa;
+	unsigned int sum = 0;
 	int carry;
 
-	m = a & mask;
-	n = b & mask;
+	if (a.parts.sign == b.parts.sign) {
+		z.parts.sign = a.parts.sign;
+		m &= mask;
+		n &= mask;
 
-	sum = m | n;
-	carry = (m >> bitnum - 1) & (n >> bitnum - 1);
+		sum = m | n;
+		carry = (m >> bitnum - 1) & (n >> bitnum - 1);
 
-	sum += (a - m) + (b - n) + (carry << bitnum);
+		sum += (a.parts.mantissa - m) + (b.parts.mantissa - n) + (carry << bitnum);
+	}
+	else {
+		if (m > n) {
+			n = complement_2(n);
+			z.parts.sign = a.parts.sign;
+		}
+		else {
+			m = complement_2(m);
+			z.parts.sign = b.parts.sign;
+		}
+		sum = (m - (m & mask)) + (n - (n & mask));
+		
+		m &= mask; n &= mask;
+		carry = (m >> bitnum - 1) & (n >> bitnum - 1);
 
+		sum += (m | n) + (carry << bitnum);
+
+		// normalize 해야됨
+	}
+		
 	return sum;
 }
 
-unsigned int ETA1(unsigned int a, unsigned int b)
+unsigned int ETA1(float_cast &z, float_cast a, float_cast b)
 {
-	unsigned int M, N, m, n, inaccuratePart = 0, r, sum = 0;
+	unsigned int M = a.parts.mantissa, N = b.parts.mantissa;
+	unsigned int m, n, inaccuratePart = 0, r, sum = 0;
 	int carry, imask = 0x800;
 
-	M = a & mask;
-	N = b & mask;
+	M &= mask;
+	N &= mask;
 
 	while (1) {
-		m = a & imask;
-		n = b & imask;
+		m = M & imask;
+		n = N & imask;
 		r = m ^ n;
 		inaccuratePart += r;
 		if (m == imask && n == imask) {
@@ -127,54 +179,9 @@ unsigned int ETA1(unsigned int a, unsigned int b)
 			break;
 	}
 
-	sum = (a - M) + (b - N) + inaccuratePart;
+	sum = (a.parts.mantissa - M) + (b.parts.mantissa - N) + inaccuratePart;
 
 	return sum;
-}
-
-void extbit_cal(float_cast x, int subEx, int *e)
-{
-	unsigned int m = emask;
-	unsigned int temp = x.parts.mantissa;
-
-	if (x.parts.exponent == 0)
-		subEx--;
-
-	if (subEx >= 25) {
-		if (x.parts.exponent != 0) {
-			m |= 0x800000; temp |= 0x800000;
-		}
-
-		e[0] = (temp & m) ? 1 : 0; // sticky bit
-
-		// round bit
-		if (subEx == 25 && x.parts.exponent != 0)
-			e[1] = 1;
-		else
-			e[1] = 0;
-
-		e[2] = 0; // guard bit -> 0
-	}
-	else if (subEx == 24) {
-		e[0] = (temp & (m >> 1)) ? 1 : 0; // sticky bit
-		e[1] = (temp & (1 << 22)) ? 1 : 0; // round bit
-
-		// guard bit
-		if (x.parts.exponent != 0)
-			e[2] = 1;
-		else
-			e[2] = 0;
-
-	}
-	else {
-		m >>= (23 - subEx);
-		temp &= m;
-		if (subEx >= 2) {
-			e[0] = (temp & (m >> 2)) ? 1 : 0; // sticky bit
-			e[1] = (temp & (1 << (subEx - 2))) ? 1 : 0; // round bit
-		}
-		e[2] = (temp & (1 << (subEx - 1))) ? 1 : 0; // guard bit
-	}
 }
 
 float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
@@ -202,24 +209,18 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 	}
 
 	float_cast z; //return 값
- 	z.parts.sign = 0;
 	unsigned int sum = 0;
-	int ext_bit[3] = { 0, }; // guard, round, sticky bit
 	int subEx_tmp = a.parts.exponent - b.parts.exponent;
 	int subEx = abs(subEx_tmp);
 	if (subEx != 0) {//exponents equal
 		checknum = 1;
 		if (a.parts.exponent > b.parts.exponent) {// a's exponent > b's exponent  => shift mantissa right
 							//b.parts.exponent = a.parts.exponent;
-			extbit_cal(b, subEx, ext_bit);
 			mantissa_cal(z, a, b, subEx);
-			z.parts.sign = a.parts.sign;
 		}
 		else {// a's exponent < b's exponent => shift mantissa right
 			 //a.parts.exponent = b.parts.exponent;
-			extbit_cal(a, abs(subEx), ext_bit);
 			mantissa_cal(z, b, a, subEx);
-			z.parts.sign = b.parts.sign;
 		}
 	}
 	else
@@ -227,10 +228,10 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 
 	switch (caseNum) {
 	case 1: //LOA
-		sum = LOA(a.parts.mantissa, b.parts.mantissa);
+		sum = LOA(z, a, b);
 		break;
 	case 2: //ETA1
-		sum = ETA1(a.parts.mantissa, b.parts.mantissa);
+		sum = ETA1(z, a, b);
 		break;
 	}
 	
@@ -242,9 +243,6 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 
 			if (z.parts.exponent != 0) {
 				z.parts.mantissa = sum >> 1;
-				ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
-				ext_bit[1] = ext_bit[2]; // round bit
-				ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
 			}
 			else {
 				//z.parts.mantissa = sum & 0x3FFFFF;
@@ -253,10 +251,6 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 			z.parts.exponent++;
 		}
 		else {
-			ext_bit[0] = ext_bit[0] | ext_bit[1]; // sticky bit = sum[1] | sum[0]
-			ext_bit[1] = ext_bit[2]; // round bit
-			ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
-
 			z.parts.mantissa = (sum >> 1) & 0x3FFFFF;
 			z.parts.exponent++;
 		}
@@ -265,9 +259,6 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 		if (subEx == 0) {
 			if (a.parts.sign == b.parts.sign) {
 				if (z.parts.exponent != 0) {
-					ext_bit[0] = ext_bit[1]; // round bit
-					ext_bit[1] = ext_bit[2]; // round bit
-					ext_bit[2] = (sum & 1) ? 1 : 0; // guard bit
 					z.parts.mantissa = sum >> 1;
 					z.parts.exponent++;
 				}
@@ -321,12 +312,6 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 		//ext_bit[0] = ext_bit[0] | ext_bit[1];
 		//z.parts.mantissa >>= 1;
 		//z.parts.exponent++;
-	}
-	// guard && (round bit | sticky | z_m[0])
-	if (ext_bit[2] && (ext_bit[1] | ext_bit[0] | (z.parts.mantissa & 1))) {
-		z.parts.mantissa++;
-		if (z.parts.mantissa >= 0xffffff)
-			z.parts.exponent++;
 	}
 
 	if (z.parts.mantissa == 0) {
