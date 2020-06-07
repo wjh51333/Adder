@@ -56,22 +56,6 @@ float_cast makeFP() {
 	return num;
 }
 
-int exp_cal(unsigned int x, unsigned int y)
-{
-	int expnum = 4, exmask = 0xF0;
-	int sub = 0;
-
-	if (x > y)
-		sub = (x & exmask) - (y & exmask);
-	else
-		sub = (y & exmask) - (x & exmask);
-
-	exmask >>= expnum;
-
-	sub += (x & exmask) ^ (y & exmask);
-
-	return sub;
-}
 
 void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	z.parts.exponent = x.parts.exponent;
@@ -88,107 +72,35 @@ void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx) {
 	}
 }
 
-int complement_2(unsigned int m)
+unsigned int LOA(unsigned int a, unsigned int b, int mode)
 {
-	int idx = 0;
-	int arr[23] = { 0, };
-	int res = 0;
-
-	while (m > 0) {
-		if (m % 2 == 1)
-			arr[idx] = 1;
-
-		m /= 2;
-		idx++;
-	}
-
-	for (int i = 0; i < idx; i++) {
-		if (arr[i] == 1)
-			arr[i] = 0;
-		else
-			arr[i] = 1;
-	}
-
-	int num = 1;
-	for (int i = 0; i < 23; i++) {
-		res += arr[i] * num;
-		num *= 2;
-	}
- 
-	return res + 1;
-}
-
-unsigned int LOA(float_cast &z, float_cast a, float_cast b)
-{
-	unsigned int m = a.parts.mantissa, n = b.parts.mantissa;
-	unsigned int sum = 0;
+	unsigned int m, n, sum;
 	int carry;
 
-	if (a.parts.sign == b.parts.sign) {
-		z.parts.sign = a.parts.sign;
-		m &= mask;
-		n &= mask;
+	m = a & mask;
+	n = b & mask;
 
-		sum = m | n;
-		carry = (m >> bitnum - 1) & (n >> bitnum - 1);
+	sum = m | n;
+	carry = (m >> bitnum - 1) & (n >> bitnum - 1);
 
-		sum += (a.parts.mantissa - m) + (b.parts.mantissa - n) + (carry << bitnum);
-	}
-	else {
-		if (a.parts.mantissa > b.parts.mantissa) {
-			if (a.parts.exponent > b.parts.exponent) {
-				sum = (m - (m & mask)) - (n - (n & mask));
-				z.parts.sign = a.parts.sign;
-			}
-			else {
-				sum = ((n | 0x800000) - (n & mask)) - (m - (m & mask));
-				z.parts.sign = b.parts.sign;
-			}
-		}
-		else {
-			if (a.parts.exponent > b.parts.exponent) {
-				sum = (m - (m & mask)) - (n - (n & mask));
-				z.parts.sign = a.parts.sign;
-			}
-			else {
-				sum = ((n | 0x800000) - (n & mask)) - (m - (m & mask));
-				z.parts.sign = b.parts.sign;
-			}
-		}
-		
-		m &= mask; n &= mask;
-		carry = (m >> bitnum - 1) & (n >> bitnum - 1);
-
-		sum += (m | n) + (carry << bitnum);
-
-		// normalize
-		if (sum > 0x7FFFFF)
-			sum &= 0x7FFFFF;
-		else {
-			int cnt;
-			for (cnt = 1; sum & 0x400000 ? 0 : 1; cnt++)
-				sum <<= 1;
-
-			sum = (sum << 1) & 0x7FFFFF;
-			z.parts.exponent -= cnt;
-		}
-	}
-		
+	if (mode == 0) //sum
+		sum += (a - m) + (b - n) + (carry << bitnum);
+	else
+		sum = (a - m) - (b - n) + (carry << bitnum);
 	return sum;
 }
 
-unsigned int ETA1(float_cast &z, float_cast a, float_cast b)
+unsigned int ETA1(unsigned int a, unsigned int b, int mode)
 {
-	unsigned int M = a.parts.mantissa, N = b.parts.mantissa;
-	unsigned int m, n, inaccuratePart = 0, r, sum = 0;
+	unsigned int M, N, m, n, inaccuratePart = 0, r, sum = 0;
 	int carry, imask = 0x800;
 
-	M &= mask;
-	N &= mask;
+	M = a & mask;
+	N = b & mask;
 
 	while (1) {
-		m = M & imask;
-		n = N & imask;
+		m = a & imask;
+		n = b & imask;
 		r = m ^ n;
 		inaccuratePart += r;
 		if (m == imask && n == imask) {
@@ -200,7 +112,61 @@ unsigned int ETA1(float_cast &z, float_cast a, float_cast b)
 			break;
 	}
 
-	sum = (a.parts.mantissa - M) + (b.parts.mantissa - N) + inaccuratePart;
+	if (mode == 0)
+		sum = (a - M) + (b - N) + inaccuratePart;
+	else
+		sum = (a - M) - (b - N) + inaccuratePart;
+
+	return sum;
+}
+
+
+unsigned int APP_sum_cal(float_cast &z, float_cast x, float_cast y, int caseNum)
+{
+	unsigned int sum = 0, temp;
+	unsigned int esum = 0;
+
+	if (x.parts.exponent < y.parts.exponent) {
+		if (caseNum == 1) //LOA
+			sum = LOA((y.parts.mantissa | 0x800000), (x.parts.mantissa), 1);
+		else if (caseNum == 2) //ETA1
+			sum = ETA1((y.parts.mantissa | 0x800000), (x.parts.mantissa), 1);
+
+		z.parts.sign = y.parts.sign;
+
+		int cnt = 0;
+		unsigned int temp;
+		temp = sum;
+		if (sum <= 0x7FFFFF) {
+			for (cnt = 1; temp & 0x400000 ? 0 : 1; cnt++)
+				temp <<= 1;
+
+			if (cnt >= 3) {
+				sum <<= cnt - 3;
+			}
+			else {
+				sum >>= 3 - cnt;
+			}
+		}
+		sum &= 0x7FFFFF;
+		int tempSum = z.parts.exponent - cnt;
+		if (tempSum <= 0) {
+			z.parts.exponent = 0;
+			sum >>= (abs(tempSum) + 1);
+			sum |= (0x400000 >> abs(tempSum));
+		}
+		else
+			z.parts.exponent -= cnt;
+
+	}
+	else {
+		if (caseNum == 1) //LOA
+			sum = LOA(x.parts.mantissa, y.parts.mantissa, 1);
+		else if (caseNum == 2) //ETA1
+			sum = ETA1(x.parts.mantissa, y.parts.mantissa, 1);
+
+		z.parts.sign = x.parts.sign;
+	}
 
 	return sum;
 }
@@ -209,6 +175,7 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 
 	//먼저 두 값이 real number인지 판단해야한다. (inf, -inf, 0, -0, NAN)
 	//0 FF 000000 -> inf, 1 FF 000000 -> -inf, 00000 -> 0, 100000 -> -0
+
 
 	//입력값이 INF일 수 가있나?
 	if (a.parts.exponent == 0xFF && a.parts.sign == 0)  //a is inf 
@@ -230,32 +197,77 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 	}
 
 	float_cast z; //return 값
+	z.parts.sign = 0;
 	unsigned int sum = 0;
+	int ext_bit[3] = { 0, }; // guard, round, sticky bit
 	int subEx_tmp = a.parts.exponent - b.parts.exponent;
 	int subEx = abs(subEx_tmp);
 	if (subEx != 0) {//exponents equal
 		checknum = 1;
 		if (a.parts.exponent > b.parts.exponent) {// a's exponent > b's exponent  => shift mantissa right
-							//b.parts.exponent = a.parts.exponent;
+										//b.parts.exponent = a.parts.exponent;
 			mantissa_cal(z, a, b, subEx);
+			z.parts.sign = a.parts.sign;
 		}
 		else {// a's exponent < b's exponent => shift mantissa right
 			 //a.parts.exponent = b.parts.exponent;
 			mantissa_cal(z, b, a, subEx);
+			z.parts.sign = b.parts.sign;
 		}
 	}
-	else
+	else {
 		z.parts.exponent = a.parts.exponent;
+		if (a.parts.sign == b.parts.sign)
+			z.parts.sign = a.parts.sign;
+		else {
+			if (a.parts.mantissa < b.parts.mantissa)
+				z.parts.sign = b.parts.sign;
+			else
+				z.parts.sign = a.parts.sign;
+		}
+	}
+
 
 	switch (caseNum) {
 	case 1: //LOA
-		sum = LOA(z, a, b);
+		if (a.parts.sign == b.parts.sign)
+			sum = LOA(a.parts.mantissa, b.parts.mantissa, 0);
+		else {
+			if (a.parts.mantissa > b.parts.mantissa) {
+				if (subEx != 0)
+					sum = APP_sum_cal(z, a, b, caseNum);
+				else
+					sum = LOA(a.parts.mantissa, b.parts.mantissa, 1);
+			}
+			else {
+				if (subEx != 0)
+					sum = APP_sum_cal(z, b, a, caseNum);
+				else
+					sum = LOA(b.parts.mantissa, a.parts.mantissa, 1);;
+			}
+		}
 		break;
 	case 2: //ETA1
-		sum = ETA1(z, a, b);
+		if (a.parts.sign == b.parts.sign)
+			sum = ETA1(a.parts.mantissa, b.parts.mantissa, 0);
+		else {
+			if (a.parts.mantissa > b.parts.mantissa) {
+				if (subEx != 0)
+					sum = APP_sum_cal(z, a, b, caseNum);
+				else
+					sum = ETA1(a.parts.mantissa, b.parts.mantissa, 1);
+			}
+			else {
+				if (subEx != 0)
+					sum = APP_sum_cal(z, b, a, caseNum);
+				else
+					sum = ETA1(b.parts.mantissa, a.parts.mantissa, 1);
+			}
+		}
 		break;
 	}
-	
+
+
 
 	//mantissa + mantissa가 23비트가 넘어가버리면 자동으로 잘라버림! (왜냐면 union이니깐)
 	//따라서 우리가 직접 넘어가는 carry값을 처리해줘야한다.
@@ -335,9 +347,6 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 		//z.parts.exponent++;
 	}
 
-	if (z.parts.mantissa == 0) {
-		z.f = 0;
-	}
 	return z;
 }
 
@@ -345,22 +354,23 @@ float_cast AXAdder(float_cast a, float_cast b, int caseNum) {
 int main(void) {
 	float_cast A, B;
 	float_cast orgAns, loa, eta1;
-	//FILE* input = fopen("Errorlist.txt", "r");
+	FILE* input = fopen("input.txt", "r");
 	//FILE* output = fopen("Errorlist.txt", "w");
 	int cnt = 0;
 	printf("A\t\t+\t\tB\t  =\torgANS\t\tLOA\t\tETA1\n");
 	printf("**********************************************************************\n");
 
-	while (nnn<=100) {
-		//fscanf(input, "%f %f ", &A.f, &B.f);
+	while (nnn<=10) {
+	//	fscanf(input, "%f %f ", &A.f, &B.f);
 
 		//A, B 직접 지정
-		/*A.f = 4.011746e-35;
-		B.f = 3.558128e-35;*/
-		do {
-			A = makeFP();
-			B = makeFP();
-		} while (A.parts.sign != 0 || B.parts.sign != 0);
+		/*A.f = 0.603934;
+		B.f = -4.830974;*/
+
+		A = makeFP();
+		B = makeFP();
+
+
 		orgAns.f = A.f + B.f;
 		loa = AXAdder(A, B, 1);
 		eta1 = AXAdder(A, B, 2);
@@ -375,10 +385,12 @@ int main(void) {
 			printf("\n\n******************************\n");
 		}
 
-		//if(orgAns.parts.exponent != loa.parts.exponent)
-		//	fprintf(output, "%e\t%e\n", A.f, B.f);
+		/*fprintf(output, "%f\t%f\n", (loa.f / orgAns.f), (eta1.f / orgAns.f));*/
+		/*if ((loa.f / orgAns.f) > 2 || (loa.f / orgAns.f) < 0.5)
+			printf("\n\n%e\t%e\n\n", A.f, B.f);*/
+
 		nnn++;
 	}
 	//fclose(output);
-	//fclose(input);
+	fclose(input);
 }
