@@ -12,8 +12,8 @@
 #include <time.h>
 //#include <values.h>
 
-#define mask 0xFFF
-#define bitnum 12
+#define mask 0x1FFF
+#define bitnum 13
 #define emask 0x7FFFFF
 
 /* endianness testing */
@@ -58,8 +58,6 @@ void mantissa_cal(float_cast &z, float_cast &x, float_cast &y, int subEx);
 unsigned int sum_cal(float_cast &z, float_cast x, float_cast y, int *e);
 
 float_cast FPAdder(float fa, float fb);
-unsigned int LOA(unsigned int a, unsigned int b);
-unsigned int ETA1(unsigned int a, unsigned int b);
 float_cast AppAdder(float fa, float fb, int caseNum);
 int exp_cal(unsigned int x, unsigned int y);
 
@@ -93,7 +91,7 @@ void DCT_1(float DCT[8][8], float DCT_T[8][8]) {
 					{
 						//result += ((int)Org[(i * 8) + m][(j * 8) + p] - 128) * DCT_T[p][n];
 						//result = FPAdder(result, ((int)Org[(i * 8) + m][(j * 8) + p] - 128) * DCT_T[p][n]).f;
-						result = AppAdder(result, ((int)Org[(i * 8) + m][(j * 8) + p] - 128) * DCT_T[p][n], 1).f;
+						result = AppAdder(result, ((int)Org[(i * 8) + m][(j * 8) + p] - 128) * DCT_T[p][n], 2).f;
 						cnt++;
 					}
 					Temp[(i * 8) + m][(j * 8) + n] = result;
@@ -146,7 +144,7 @@ void DCT_2(float DCT[8][8], float DCT_T[8][8]) {
 					{
 						//result += output[(i * 8) + m][(j * 8) + p] * DCT[p][n];
 						//result = FPAdder(result, output[(i * 8) + m][(j * 8) + p] * DCT[p][n]).f;
-						result = AppAdder(result, output[(i * 8) + m][(j * 8) + p] * DCT[p][n], 1).f;
+						result = AppAdder(result, output[(i * 8) + m][(j * 8) + p] * DCT[p][n], 2).f;
 						cnt++;
 					}
 					Temp[(i * 8) + m][(j * 8) + n] = result;
@@ -162,7 +160,7 @@ void DCT_2(float DCT[8][8], float DCT_T[8][8]) {
 					{
 						//result += DCT_T[m][p] * Temp[(i * 8) + p][(j * 8) + n];
 						//result = FPAdder(result, DCT_T[m][p] * Temp[(i * 8) + p][(j * 8) + n]).f;
-						result = AppAdder(result, DCT_T[m][p] * Temp[(i * 8) + p][(j * 8) + n], 1).f;
+						result = AppAdder(result, DCT_T[m][p] * Temp[(i * 8) + p][(j * 8) + n], 2).f;
 						cnt++;
 					}
 					result += 128.0;
@@ -200,9 +198,6 @@ void smoothing() {
 	FILE *outfile = fopen("양자화 후 필터링.raw", "wb");
 	fwrite(output3, sizeof(unsigned char), SIZE * SIZE, outfile);
 	fclose(outfile);
-}
-
-void median() {
 }
 
 void main() {
@@ -284,11 +279,11 @@ void main() {
 
 	//org: 52.430256
 	//myorg: 52.429989 (3개)
-	//LOA : 26.894617 (4개)  29.260611(3개)
-	//ETA1 : 26.873035 (4개) 29.235916 (3개)
+	//LOA : 26.894617 (4개)  29.260611(3개) 29.209911(3개, 8bit) 29.224827(3개, 11bit) 29.302790 (3개, 13bit)
+	//ETA1 : 14.525167 (4개) 29.245888 (3개) 29.208326(3개, 8bit) 29.222267(3개, 11bit)
 
 
-	FILE *outfile = fopen("LOA_3.raw", "wb");
+	FILE *outfile = fopen("ETAI_3_13bit_DCT.raw", "wb");
 	fwrite(output2, sizeof(unsigned char), SIZE * SIZE, outfile);
 	fclose(outfile);
 
@@ -640,7 +635,7 @@ unsigned int LOA(unsigned int a, unsigned int b, int mode)
 unsigned int ETA1(unsigned int a, unsigned int b, int mode)
 {
 	unsigned int M, N, m, n, inaccuratePart = 0, r, sum = 0;
-	int carry, imask = 0x800;
+	int carry, imask = 0x1000; // 1 0000 0000 0000
 
 	M = a & mask;
 	N = b & mask;
@@ -648,7 +643,7 @@ unsigned int ETA1(unsigned int a, unsigned int b, int mode)
 	while (1) {
 		m = a & imask;
 		n = b & imask;
-		r = m ^ n;
+		r = m | n;
 		inaccuratePart += r;
 		if (m == imask && n == imask) {
 			inaccuratePart += imask - 1;
