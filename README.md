@@ -1,6 +1,6 @@
 # Adder
 ⌨ team project for [2020-1] KNU capstone project2<br>
-🖱 (연구실 이름? 적어야 할까)<br>
+🖱 mento professor YongTae Kim <br>
 🎥 Demo Video: https://youtu.be/1foM8boSv5A
 
 ## Introduction
